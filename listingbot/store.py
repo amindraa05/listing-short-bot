@@ -137,6 +137,11 @@ def set_equity(cx, v):
     cx.execute("UPDATE meta SET value=? WHERE key='equity'", (str(v),))
 
 
+def set_meta(cx, key, value):
+    cx.execute("INSERT OR REPLACE INTO meta(key,value) VALUES(?,?)", (key, str(value)))
+    cx.commit()
+
+
 def bootstrap_symbols(cx, symbols):
     """First run stores the snapshot without flagging anything as new — there is no
     prior state to diff against, so calling 470 existing pairs 'new' would be wrong."""

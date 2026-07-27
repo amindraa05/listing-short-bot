@@ -164,6 +164,20 @@ def cmd_publish(args):
     if not os.path.isdir(os.path.join(repo, ".git")):
         log.error("no git repo at %s", repo)
         return 1
+    # A commit per tick would bury the repository in 288 noise commits a day, because
+    # the page carries a "last updated" stamp that changes even when nothing happened.
+    # So publish when the SUBSTANCE changes, plus a floor so the stamp never looks dead.
+    fp = "|".join(str(x) for x in cx.execute(
+        "SELECT (SELECT COUNT(*) FROM events), (SELECT COUNT(*) FROM positions), "
+        "(SELECT COUNT(*) FROM positions WHERE status='closed'), "
+        "(SELECT ROUND(COALESCE(SUM(pnl_usdt),0),4) FROM positions)").fetchone())
+    prev = cx.execute("SELECT value FROM meta WHERE key='publish_fp'").fetchone()
+    last = cx.execute("SELECT value FROM meta WHERE key='publish_ms'").fetchone()
+    age_h = (store.now_ms() - int(last["value"])) / 3_600_000 if last else 1e9
+    if not args.force and prev and prev["value"] == fp and age_h < args.max_age_hours:
+        log.info("state unchanged and last publish %.1fh ago — skipping", age_h)
+        return 0
+
     docs = os.path.join(repo, "docs")
     os.makedirs(docs, exist_ok=True)
     dest = os.path.join(docs, "monitor.html")
@@ -188,6 +202,8 @@ def cmd_publish(args):
             try:
                 git("pull", "--rebase", "--autostash", "origin", "main")
                 git("push", "origin", "main")
+                store.set_meta(cx, "publish_fp", fp)
+                store.set_meta(cx, "publish_ms", str(store.now_ms()))
                 log.info("published monitor (%d closed, equity %.2f)", n, eq)
                 return 0
             except subprocess.CalledProcessError as e:
@@ -213,6 +229,10 @@ def main(argv=None):
     ex.add_argument("--out")
     pb = sub.add_parser("publish", help="regenerate the monitor page and git push it")
     pb.add_argument("--repo")
+    pb.add_argument("--force", action="store_true",
+                    help="publish even when nothing substantive changed")
+    pb.add_argument("--max-age-hours", type=float, default=6.0,
+                    help="publish anyway once the page is this stale (default 6)")
     args = ap.parse_args(argv)
     return {"tick": cmd_tick, "status": cmd_status, "ledger": cmd_ledger,
             "export": cmd_export, "publish": cmd_publish}[args.cmd](args)
