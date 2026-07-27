@@ -22,6 +22,9 @@ A tuned version reached t 4.03 by entering at T+18h — the peak of a ten-hour s
 number is not used here. The rule below uses T+12h, which came from the operator's own
 observation before any data was pulled.
 
+**Live results:** <https://amindraa05.github.io/listing-short-bot/monitor.html> ·
+**research findings:** <https://amindraa05.github.io/listing-short-bot/>
+
 There is also **no clean holdout left**: all 115 events were used to sweep the entry hour,
 pick the exits and repair filters. Forward data is the only uncontaminated evidence that
 remains, and collecting it is the entire purpose of this bot.
@@ -37,10 +40,15 @@ take profit 15%
 stop loss   15%   (not optional: 5 of 115 events would have liquidated a 1x short)
 max hold    72h
 leverage    1x
-size        10% of paper equity
+size        20% of paper equity
 ```
 
-**Do not tune these.** Their only value is that they were not chosen by looking at
+Sizing is the one number the operator set deliberately rather than inheriting from the
+research: 20% of equity per position. The bootstrapped p90 drawdown was 35.8% at 30% and
+scales roughly linearly, so expect about **24%** at 20% — size against that figure, not
+against the kinder 16.7% the historical trade ordering happened to produce.
+
+**Do not tune the rest.** Their only value is that they were not chosen by looking at
 outcomes. Changing one voids the forward test. A trailing take-profit was tested against
 a properly sealed holdout and refuted on DEV, so the holdout was never spent.
 
@@ -75,6 +83,7 @@ python -m listingbot.cli tick      # one cycle — what the timer calls
 python -m listingbot.cli status    # live results against the backtest expectation
 python -m listingbot.cli ledger    # every closed position with measured slippage
 python -m listingbot.cli export    # CSV dump of every table
+python -m listingbot.cli publish   # regenerate docs/monitor.html and git push it
 ```
 
 Stdlib only. No pip, no venv, no dependencies.
@@ -99,6 +108,18 @@ impossible rather than unlikely:
   live trading always wins
 - `ProtectSystem=strict` with a single writable path, its own data directory
 - `uninstall.sh` refuses to delete a directory lacking the installer's marker file
+
+## The monitor page
+
+`tick` rewrites `data/monitor.html` every cycle, and `publish` commits it to `docs/` so
+GitHub Pages serves it. **This is a file, not a service** — nothing listens on a port,
+which is the same reason the install cannot collide with anything else on the host.
+
+It is public, and it has no login. A password on a static page is theatre: the page is
+already served to anyone who asks, and any check written into it is visible in the source.
+The three real options are a private repo, an SSH tunnel to the host, or accepting that
+$1,000 of paper money running a rule whose code is public is not a secret. This runs on
+the third; the page carries `noindex` so it will not turn up in search results.
 
 ## Reading the results
 

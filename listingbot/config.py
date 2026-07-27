@@ -26,9 +26,11 @@ TAKE_PROFIT = 0.15        # fraction, favourable
 STOP_LOSS = 0.15          # fraction, adverse
 MAX_HOLD_HOURS = 72
 LEVERAGE = 1.0
-POSITION_PCT = 0.10       # of notional equity, per position. 10% not 30%: the
-                          # backtest's p90 drawdown was 35.8% at 30%, and n=115 is
-                          # not enough confidence for that.
+POSITION_PCT = 0.20       # of equity per position, set by the operator.
+                          # For context on what that implies: the backtest's
+                          # bootstrapped p90 drawdown was 35.8% at 30% sizing and
+                          # scales roughly linearly, so ~24% at 20%. The historical
+                          # ordering gave a kinder 16.7%; size against the p90.
 
 # ---- paper account ---------------------------------------------------------
 PAPER_START_EQUITY = 1000.0

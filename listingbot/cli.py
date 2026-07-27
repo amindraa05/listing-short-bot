@@ -11,7 +11,7 @@ import sys
 import time
 
 from . import config as C
-from . import engine, store
+from . import engine, report, store
 
 BACKTEST = {"n": 115, "mean": 2.71, "median": 14.77, "win": 62.6, "t": 1.99,
             "sd": 14.6, "bar": 3.55}
@@ -150,6 +150,56 @@ def cmd_export(args):
     return 0
 
 
+def cmd_publish(args):
+    """Regenerate the monitor page and push it to the repo's docs/ directory.
+
+    Publishing by git commit rather than by running a web server is deliberate: the
+    host also runs the operator's live trading, and this bot binds no port.
+    """
+    import subprocess
+    _log(args.verbose)
+    log = logging.getLogger("listingbot")
+    cx = store.connect()
+    repo = args.repo or os.environ.get("LISTINGBOT_REPO", "/opt/listing-bot/repo")
+    if not os.path.isdir(os.path.join(repo, ".git")):
+        log.error("no git repo at %s", repo)
+        return 1
+    docs = os.path.join(repo, "docs")
+    os.makedirs(docs, exist_ok=True)
+    dest = os.path.join(docs, "monitor.html")
+    report.write(cx, dest)
+
+    def git(*a, check=True):
+        return subprocess.run(["git", "-C", repo, *a], capture_output=True,
+                              text=True, check=check, timeout=120)
+
+    try:
+        git("add", "docs/monitor.html")
+        if not git("status", "--porcelain", "docs/monitor.html").stdout.strip():
+            log.info("monitor unchanged, nothing to publish")
+            return 0
+        eq = store.get_equity(cx)
+        n = cx.execute("SELECT COUNT(*) n FROM positions WHERE status='closed'"
+                       ).fetchone()["n"]
+        git("-c", "user.name=listingbot", "-c", "user.email=listingbot@localhost",
+            "-c", "commit.gpgsign=false", "commit", "-m",
+            f"monitor: {n} closed, equity {eq:.2f}")
+        for attempt in range(3):
+            try:
+                git("pull", "--rebase", "--autostash", "origin", "main")
+                git("push", "origin", "main")
+                log.info("published monitor (%d closed, equity %.2f)", n, eq)
+                return 0
+            except subprocess.CalledProcessError as e:
+                log.warning("push attempt %d failed: %s", attempt + 1,
+                            (e.stderr or "")[-200:])
+                time.sleep(3 * (attempt + 1))
+        return 1
+    except subprocess.CalledProcessError as e:
+        log.error("git failed: %s", (e.stderr or "")[-300:])
+        return 1
+
+
 def main(argv=None):
     ap = argparse.ArgumentParser(prog="listingbot",
                                 description="Paper-trade the Binance listing short. "
@@ -161,9 +211,11 @@ def main(argv=None):
     sub.add_parser("ledger", help="every closed position with measured slippage")
     ex = sub.add_parser("export", help="dump tables to CSV")
     ex.add_argument("--out")
+    pb = sub.add_parser("publish", help="regenerate the monitor page and git push it")
+    pb.add_argument("--repo")
     args = ap.parse_args(argv)
     return {"tick": cmd_tick, "status": cmd_status, "ledger": cmd_ledger,
-            "export": cmd_export}[args.cmd](args)
+            "export": cmd_export, "publish": cmd_publish}[args.cmd](args)
 
 
 if __name__ == "__main__":

@@ -16,7 +16,7 @@ import logging
 import math
 
 from . import config as C
-from . import fills, store, venues
+from . import fills, report, store, venues
 
 log = logging.getLogger("listingbot")
 
@@ -259,4 +259,11 @@ def tick(cx):
             log.exception("%s failed", label)
             errors.append(f"{label}: {type(e).__name__}: {e}")
     store.record_run(cx, new, opened, closed, errors or None)
+    # The monitor page is regenerated every tick so it can never be stale. It is a
+    # file, not a server — this bot still binds no port on a host running live trading.
+    try:
+        report.write(cx)
+    except Exception as e:                                      # noqa: BLE001
+        log.warning("monitor page not written: %s", e)
+        errors.append(f"report: {type(e).__name__}: {e}")
     return {"new_events": new, "opened": opened, "closed": closed, "errors": errors}

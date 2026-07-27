@@ -1,0 +1,208 @@
+<!doctype html>
+<html lang="en"><head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex">
+<title>Paper Trade Monitor — Listing Short</title>
+<style>
+:root { --ink:#0f141a; --paper:#f6f7f9; --panel:#fff; --line:#dfe4ea; --muted:#69737f;
+  --accent:#2e6f96; --accent-soft:#e6eef4; --good:#2c7a56; --bad:#a63a37; --warn:#8a6a1f;
+  --mono:ui-monospace,"Cascadia Mono","SF Mono",Consolas,monospace;
+  --sans:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif; }
+@media (prefers-color-scheme:dark) { :root { --ink:#e7ecf1; --paper:#0d1218;
+  --panel:#151c24; --line:#26303b; --muted:#8b97a5; --accent:#6aaed4;
+  --accent-soft:#1a2a36; --good:#5fbf92; --bad:#e08079; --warn:#d0aa5c; } }
+:root[data-theme="dark"] { --ink:#e7ecf1; --paper:#0d1218; --panel:#151c24;
+  --line:#26303b; --muted:#8b97a5; --accent:#6aaed4; --accent-soft:#1a2a36;
+  --good:#5fbf92; --bad:#e08079; --warn:#d0aa5c; }
+:root[data-theme="light"] { --ink:#0f141a; --paper:#f6f7f9; --panel:#fff;
+  --line:#dfe4ea; --muted:#69737f; --accent:#2e6f96; --accent-soft:#e6eef4;
+  --good:#2c7a56; --bad:#a63a37; --warn:#8a6a1f; }
+*{box-sizing:border-box}
+body{margin:0;background:var(--paper);color:var(--ink);font-family:var(--sans);
+  font-size:15px;line-height:1.6;-webkit-font-smoothing:antialiased}
+.wrap{max-width:1100px;margin:0 auto;padding:36px 22px 64px}
+.m{font-family:var(--mono);font-variant-numeric:tabular-nums}
+.small{font-size:0.8rem}
+h1{font-size:clamp(1.5rem,3vw,2rem);margin:0 0 6px;letter-spacing:-0.02em;
+  font-weight:700;text-wrap:balance}
+h2{font-size:0.76rem;letter-spacing:0.13em;text-transform:uppercase;color:var(--muted);
+  font-family:var(--mono);font-weight:600;margin:0 0 12px;padding-bottom:8px;
+  border-bottom:1px solid var(--line)}
+.eyebrow{font-family:var(--mono);font-size:0.72rem;letter-spacing:0.15em;
+  text-transform:uppercase;color:var(--accent);margin-bottom:9px}
+.lede{color:var(--muted);max-width:70ch;margin:0 0 26px}
+section{margin-bottom:34px}
+.banner{border:1px solid var(--line);border-left:3px solid var(--warn);
+  background:var(--panel);padding:16px 20px;border-radius:3px;margin-bottom:26px}
+.banner.ok{border-left-color:var(--good)} .banner.no{border-left-color:var(--bad)}
+.banner p{margin:0;max-width:74ch}
+.bar{height:5px;background:var(--line);border-radius:3px;margin-top:12px;overflow:hidden}
+.bar span{display:block;height:100%;background:var(--accent)}
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(144px,1fr));gap:1px;
+  background:var(--line);border:1px solid var(--line);border-radius:3px;overflow:hidden}
+.kpi{background:var(--panel);padding:14px 16px}
+.kpi .k{font-family:var(--mono);font-size:0.66rem;letter-spacing:0.1em;
+  text-transform:uppercase;color:var(--muted)}
+.kpi .v{font-family:var(--mono);font-size:1.45rem;letter-spacing:-0.02em;margin-top:3px;
+  font-variant-numeric:tabular-nums}
+.kpi .s{font-family:var(--mono);font-size:0.7rem;color:var(--muted);margin-top:2px}
+.v.pos{color:var(--good)} .v.neg{color:var(--bad)}
+.cmp{display:grid;grid-template-columns:1fr 1fr;gap:1px;background:var(--line);
+  border:1px solid var(--line);border-radius:3px;overflow:hidden}
+.cmp>div{background:var(--panel);padding:15px 17px}
+.cmp>div.live{background:var(--accent-soft)}
+.cmp h3{font-family:var(--mono);font-size:0.68rem;letter-spacing:0.1em;
+  text-transform:uppercase;margin:0 0 8px;color:var(--muted);font-weight:600}
+.cmp dl{display:grid;grid-template-columns:auto 1fr;gap:3px 14px;margin:0;
+  font-family:var(--mono);font-size:0.82rem}
+.cmp dt{color:var(--muted)} .cmp dd{margin:0;font-variant-numeric:tabular-nums}
+.tablewrap{overflow-x:auto;border:1px solid var(--line);border-radius:3px;
+  background:var(--panel)}
+table{width:100%;border-collapse:collapse;font-size:0.82rem}
+th{text-align:left;font-family:var(--mono);font-size:0.66rem;letter-spacing:0.08em;
+  text-transform:uppercase;color:var(--muted);font-weight:600;padding:9px 11px;
+  border-bottom:1px solid var(--line)}
+td{padding:7px 11px;border-bottom:1px solid var(--line);white-space:nowrap}
+tr:last-child td{border-bottom:0}
+td.sym{font-family:var(--mono);font-weight:600}
+td.dim{color:var(--muted)} td.pos{color:var(--good)} td.neg{color:var(--bad)}
+.chip{font-family:var(--mono);font-size:0.64rem;letter-spacing:0.06em;
+  text-transform:uppercase;padding:2px 6px;border-radius:2px;border:1px solid currentColor}
+.chip.ok{color:var(--good)} .chip.no{color:var(--bad)} .chip.mid{color:var(--warn)}
+.rule{background:var(--panel);border:1px solid var(--line);border-radius:3px;
+  padding:15px 18px;font-family:var(--mono);font-size:0.82rem}
+.rule dl{display:grid;grid-template-columns:auto 1fr;gap:4px 18px;margin:0}
+.rule dt{color:var(--muted)} .rule dd{margin:0}
+footer{border-top:1px solid var(--line);padding-top:14px;font-family:var(--mono);
+  font-size:0.7rem;color:var(--muted);display:flex;gap:16px;flex-wrap:wrap}
+a{color:var(--accent)}
+@media (max-width:620px){.cmp{grid-template-columns:1fr}}
+</style>
+</head><body>
+
+<div class="wrap">
+  <div class="eyebrow">Paper trade monitor &middot; updated 2026-07-27 18:23 UTC</div>
+  <h1>Listing-short forward test</h1>
+  <p class="lede">Live paper trading of a rule whose backtest <strong>did not</strong> clear
+  its own significance bar. Fills walk the real Gate order book, fees and funding are the
+  venue's own. No real orders are placed and no API key exists.
+  <a href="https://amindraa05.github.io/listing-short-bot/">Research findings &rarr;</a></p>
+
+  <div class="banner mid">
+    <p>15 more closed trades before the stop check is even meaningful. Nothing here should change your mind yet.</p>
+    <div class="bar"><span style="width:0%"></span></div>
+  </div>
+
+  <section>
+    <h2>Paper account</h2>
+    <div class="kpis">
+      <div class="kpi"><div class="k">Equity</div>
+        <div class="v pos">1,000.00</div>
+        <div class="s">+0.00% from 1,000</div></div>
+      <div class="kpi"><div class="k">Closed</div><div class="v">0</div>
+        <div class="s">of 15 for the first check</div></div>
+      <div class="kpi"><div class="k">Open</div><div class="v">0</div>
+        <div class="s">max hold 72h</div></div>
+      <div class="kpi"><div class="k">Win rate</div>
+        <div class="v">—</div>
+        <div class="s">backtest 62.6%</div></div>
+      <div class="kpi"><div class="k">Mean / trade</div>
+        <div class="v">—</div>
+        <div class="s">backtest +2.71%</div></div>
+      <div class="kpi"><div class="k">Running</div><div class="v">0.0d</div>
+        <div class="s">0 ticks in 24h</div></div>
+    </div>
+  </section>
+
+  <section>
+    <h2>Live against the backtest expectation</h2>
+    <div class="cmp">
+      <div><h3>Backtest, untuned configuration</h3><dl>
+        <dt>events</dt><dd>115 over 1.89 years</dd>
+        <dt>mean</dt><dd>+2.71%</dd>
+        <dt>median</dt><dd>+14.77%</dd>
+        <dt>win rate</dt><dd>62.6%</dd>
+        <dt>sd</dt><dd>14.6%</dd>
+        <dt>t</dt><dd>1.99 &nbsp;vs bar 3.55 &mdash; failed</dd>
+      </dl></div>
+      <div class="live"><h3>Live paper result</h3><dl>
+        <dt>events</dt><dd>0</dd>
+        <dt>mean</dt><dd>—</dd>
+        <dt>median</dt><dd>—</dd>
+        <dt>win rate</dt><dd>—</dd>
+        <dt>sd</dt><dd>—</dd>
+        <dt>t</dt><dd>—</dd>
+      </dl></div>
+    </div>
+  </section>
+
+  <section>
+    <h2>Measured costs &mdash; the thing the backtest could only assume</h2>
+    <div class="kpis">
+      <div class="kpi"><div class="k">Entry slippage</div>
+        <div class="v">—</div>
+        <div class="s">vs mid, book-walked</div></div>
+      <div class="kpi"><div class="k">Exit slippage</div>
+        <div class="v">—</div>
+        <div class="s">vs mid</div></div>
+      <div class="kpi"><div class="k">Funding</div>
+        <div class="v">—</div>
+        <div class="s">per trade, + = credit to short</div></div>
+      <div class="kpi"><div class="k">Taker fee</div>
+        <div class="v">0.05%</div>
+        <div class="s">per side, both legs</div></div>
+      <div class="kpi"><div class="k">Total P&amp;L</div>
+        <div class="v pos">
+          —</div>
+        <div class="s">USDT, paper</div></div>
+    </div>
+  </section>
+
+  <section>
+    <h2>Open positions</h2>
+    <div class="tablewrap"><table>
+      <thead><tr><th>Token</th><th>Entry</th><th>TP</th><th>SL</th><th>Age</th>
+      <th>Worst</th><th>Best</th><th>Notional</th></tr></thead>
+      <tbody><tr><td colspan="8" class="dim">no open positions</td></tr></tbody></table></div>
+  </section>
+
+  <section>
+    <h2>Closed positions</h2>
+    <div class="tablewrap"><table>
+      <thead><tr><th>Opened</th><th>Token</th><th>Perp gap</th><th>In slip</th>
+      <th>Out slip</th><th>Funding</th><th>Gross</th><th>Net</th><th>USDT</th>
+      <th>Exit</th></tr></thead>
+      <tbody><tr><td colspan="10" class="dim">no closed positions yet</td></tr></tbody></table></div>
+  </section>
+
+  <section>
+    <h2>Listings seen, and why most are skipped</h2>
+    <div class="tablewrap"><table>
+      <thead><tr><th>Detected</th><th>Token</th><th>Perp gap</th><th>Status</th>
+      <th>Reason</th></tr></thead>
+      <tbody><tr><td colspan="5" class="dim">no listings detected yet</td></tr></tbody></table></div>
+  </section>
+
+  <section>
+    <h2>The frozen rule</h2>
+    <div class="rule"><dl>
+      <dt>signal</dt><dd>new USDT pair starts trading on Binance spot</dd>
+      <dt>filter</dt><dd>a perpetual must exist by the entry hour (Gate / OKX / KuCoin)</dd>
+      <dt>direction</dt><dd>short, never long</dd>
+      <dt>entry</dt><dd>T+12h from the first traded hour</dd>
+      <dt>take profit</dt><dd>15%</dd>
+      <dt>stop loss</dt><dd>15%</dd>
+      <dt>max hold</dt><dd>72h</dd>
+      <dt>size</dt><dd>20% of paper equity, 1&times;</dd>
+    </dl></div>
+  </section>
+
+  <footer>
+    <span>health <span class="chip no">stale</span>
+      last tick 9999 min ago</span>
+    <span>paper only &mdash; no orders, no keys</span>
+    
+  </footer>
+</div>
+</body></html>

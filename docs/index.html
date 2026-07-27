@@ -1,0 +1,492 @@
+<!doctype html>
+<html lang="en"><head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="description" content="Shorting the Binance listing pump: the one surviving
+hypothesis of roughly three thousand tested, reported at the parameters that were not
+chosen by looking at the data — including the fact that it fails its own significance bar.">
+<title>Listing-Short Research — Honest Findings</title>
+<style>
+:root {
+  --ink:#0f141a; --paper:#f6f7f9; --panel:#ffffff; --line:#dfe4ea;
+  --muted:#69737f; --accent:#2e6f96; --accent-soft:#e6eef4;
+  --good:#2c7a56; --bad:#a63a37; --warn:#8a6a1f;
+  --mono: ui-monospace, "Cascadia Mono", "SF Mono", Consolas, "Liberation Mono", monospace;
+  --sans: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+}
+@media (prefers-color-scheme: dark) {
+  :root { --ink:#e7ecf1; --paper:#0d1218; --panel:#151c24; --line:#26303b;
+    --muted:#8b97a5; --accent:#6aaed4; --accent-soft:#1a2a36;
+    --good:#5fbf92; --bad:#e08079; --warn:#d0aa5c; }
+}
+:root[data-theme="dark"] { --ink:#e7ecf1; --paper:#0d1218; --panel:#151c24;
+  --line:#26303b; --muted:#8b97a5; --accent:#6aaed4; --accent-soft:#1a2a36;
+  --good:#5fbf92; --bad:#e08079; --warn:#d0aa5c; }
+:root[data-theme="light"] { --ink:#0f141a; --paper:#f6f7f9; --panel:#ffffff;
+  --line:#dfe4ea; --muted:#69737f; --accent:#2e6f96; --accent-soft:#e6eef4;
+  --good:#2c7a56; --bad:#a63a37; --warn:#8a6a1f; }
+* { box-sizing:border-box; }
+body { margin:0; background:var(--paper); color:var(--ink); font-family:var(--sans);
+  font-size:15px; line-height:1.6; -webkit-font-smoothing:antialiased; }
+.wrap { max-width:1100px; margin:0 auto; padding:40px 24px 72px; }
+.m { font-family:var(--mono); font-variant-numeric:tabular-nums; }
+h1 { font-size:clamp(1.6rem,3.4vw,2.3rem); line-height:1.15; margin:0 0 6px;
+  letter-spacing:-0.022em; font-weight:700; text-wrap:balance; }
+h2 { font-size:0.78rem; letter-spacing:0.13em; text-transform:uppercase;
+  color:var(--muted); font-family:var(--mono); font-weight:600; margin:0 0 14px;
+  padding-bottom:8px; border-bottom:1px solid var(--line); }
+p { max-width:66ch; }
+.eyebrow { font-family:var(--mono); font-size:0.74rem; letter-spacing:0.16em;
+  text-transform:uppercase; color:var(--accent); margin-bottom:10px; }
+.lede { color:var(--muted); max-width:70ch; margin:0 0 32px; }
+section { margin-bottom:40px; }
+.verdict { border:1px solid var(--line); border-left:3px solid var(--bad);
+  background:var(--panel); padding:18px 22px; border-radius:3px; margin-bottom:20px; }
+.verdict strong { color:var(--bad); }
+.verdict p { margin:0; } .verdict p + p { margin-top:10px; }
+.compare { display:grid; grid-template-columns:1fr 1fr; gap:1px; background:var(--line);
+  border:1px solid var(--line); border-radius:3px; overflow:hidden; margin-bottom:34px; }
+.cmp { background:var(--panel); padding:16px 18px; }
+.cmp.bad-side { background:var(--accent-soft); }
+.cmp h3 { font-family:var(--mono); font-size:0.7rem; letter-spacing:0.1em;
+  text-transform:uppercase; margin:0 0 8px; color:var(--muted); font-weight:600; }
+.cmp .big { font-family:var(--mono); font-size:1.7rem; letter-spacing:-0.02em;
+  font-variant-numeric:tabular-nums; }
+.cmp ul { list-style:none; padding:0; margin:8px 0 0; font-family:var(--mono);
+  font-size:0.76rem; color:var(--muted); display:grid; gap:3px; }
+.kpis { display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:1px;
+  background:var(--line); border:1px solid var(--line); border-radius:3px; overflow:hidden; }
+.kpi { background:var(--panel); padding:16px 18px; }
+.kpi .k { font-family:var(--mono); font-size:0.68rem; letter-spacing:0.1em;
+  text-transform:uppercase; color:var(--muted); }
+.kpi .v { font-family:var(--mono); font-size:1.55rem; font-variant-numeric:tabular-nums;
+  letter-spacing:-0.02em; margin-top:4px; }
+.kpi .s { font-family:var(--mono); font-size:0.72rem; color:var(--muted); margin-top:2px; }
+.v.pos { color:var(--good); } .v.neg { color:var(--bad); }
+.spec { background:var(--panel); border:1px solid var(--line); border-radius:3px;
+  padding:18px 20px; font-family:var(--mono); font-size:0.85rem; }
+.spec dl { display:grid; grid-template-columns:auto 1fr; gap:6px 20px; margin:0; }
+.spec dt { color:var(--muted); } .spec dd { margin:0; font-variant-numeric:tabular-nums; }
+.chart { background:var(--panel); border:1px solid var(--line); border-radius:3px; padding:16px; }
+canvas { width:100%; height:260px; display:block; }
+.legend { display:flex; gap:18px; flex-wrap:wrap; font-family:var(--mono);
+  font-size:0.72rem; color:var(--muted); margin-top:10px; }
+.gates { display:grid; grid-template-columns:repeat(auto-fit,minmax(300px,1fr)); gap:14px; }
+.gate { background:var(--panel); border:1px solid var(--line); border-radius:3px;
+  padding:15px 17px; }
+.gate-h { display:flex; align-items:center; gap:9px; margin-bottom:6px; }
+.gate-v { font-size:0.85rem; color:var(--accent); margin-bottom:7px; }
+.gate p { margin:0; font-size:0.86rem; color:var(--muted); max-width:none; }
+.chip { font-family:var(--mono); font-size:0.66rem; letter-spacing:0.07em;
+  text-transform:uppercase; padding:2px 7px; border-radius:2px; white-space:nowrap;
+  border:1px solid currentColor; }
+.chip.ok { color:var(--good); } .chip.no { color:var(--bad); }
+.chip.mid { color:var(--warn); }
+.cohorts { display:grid; grid-template-columns:repeat(auto-fit,minmax(220px,1fr)); gap:1px;
+  background:var(--line); border:1px solid var(--line); border-radius:3px; overflow:hidden; }
+.coh { background:var(--panel); padding:15px 17px; }
+.coh h3 { font-family:var(--mono); font-size:0.76rem; margin:0 0 8px; font-weight:600; }
+.coh .big { font-family:var(--mono); font-size:1.3rem; font-variant-numeric:tabular-nums; }
+.coh .meta { font-family:var(--mono); font-size:0.74rem; color:var(--muted); }
+table.plain { width:100%; border-collapse:collapse; font-family:var(--mono);
+  font-size:0.8rem; background:var(--panel); border:1px solid var(--line);
+  border-radius:3px; overflow:hidden; }
+table.plain th { text-align:left; padding:9px 12px; font-size:0.68rem;
+  letter-spacing:0.08em; text-transform:uppercase; color:var(--muted);
+  border-bottom:1px solid var(--line); }
+table.plain td { padding:8px 12px; border-bottom:1px solid var(--line);
+  font-variant-numeric:tabular-nums; }
+table.plain tr:last-child td { border-bottom:0; }
+.tablewrap { overflow-x:auto; border:1px solid var(--line); border-radius:3px;
+  background:var(--panel); max-height:520px; overflow-y:auto; }
+.tablewrap table { width:100%; border-collapse:collapse; font-size:0.82rem; }
+.tablewrap thead th { position:sticky; top:0; background:var(--panel); text-align:left;
+  font-family:var(--mono); font-size:0.68rem; letter-spacing:0.08em;
+  text-transform:uppercase; color:var(--muted); font-weight:600; padding:10px 12px;
+  border-bottom:1px solid var(--line); z-index:1; }
+.tablewrap tbody td { padding:7px 12px; border-bottom:1px solid var(--line); white-space:nowrap; }
+.tablewrap tbody tr:hover td { background:var(--accent-soft); }
+td.sym { font-family:var(--mono); font-weight:600; }
+td.dim { color:var(--muted); } td.pos { color:var(--good); } td.neg { color:var(--bad); }
+.tnote { font-family:var(--mono); font-size:0.72rem; color:var(--muted); margin-top:10px; }
+ul.caveats { list-style:none; padding:0; margin:0; display:grid; gap:12px; }
+ul.caveats li { background:var(--panel); border:1px solid var(--line);
+  border-left:3px solid var(--bad); border-radius:3px; padding:13px 16px; }
+ul.caveats strong { display:block; margin-bottom:3px; }
+ul.caveats span { color:var(--muted); font-size:0.9rem; }
+footer { border-top:1px solid var(--line); padding-top:16px; font-family:var(--mono);
+  font-size:0.72rem; color:var(--muted); }
+@media (max-width:620px) { .compare { grid-template-columns:1fr; } }
+.livelink { display:flex; align-items:baseline; gap:14px; flex-wrap:wrap;
+  border:1px solid var(--line); border-left:3px solid var(--accent);
+  background:var(--panel); padding:13px 18px; border-radius:3px; margin:0 0 26px; }
+.livelink a { font-family:var(--mono); font-size:0.86rem; font-weight:600;
+  letter-spacing:0.02em; white-space:nowrap; }
+.livelink span { color:var(--muted); font-size:0.86rem; }
+@media (prefers-reduced-motion:reduce) { * { transition:none !important; } }
+</style>
+</head><body>
+
+
+<div class="wrap">
+  <div class="eyebrow">Research findings &middot; 2024-08-27 to 2026-07-18
+    &middot; untuned configuration</div>
+  <h1>Shorting the Binance listing pump</h1>
+  <p class="lede">The one hypothesis of roughly three thousand tested that is still
+  standing — reported here at the parameters that were <em>not</em> chosen by looking at
+  the data. 115 listings over 1.89 years, priced on the perpetual
+  actually shorted, with fees, spread, gap-through fills and the liquidation rule applied.</p>
+
+  <p class="livelink"><a href="monitor.html">Live paper-trade monitor &rarr;</a>
+  <span>the forward test described at the bottom of this page, running now on a VPS,
+  updated every five minutes</span></p>
+
+  <div class="verdict">
+    <p><strong>This is not an established edge.</strong> The untuned rule reaches
+    t&nbsp;1.99 against a significance bar of 3.55, and on the subset that was
+    never used to choose any parameter it reaches only 1.14. The
+    direction is consistent and the mechanism is nameable, but the evidence does not
+    clear the threshold this project holds everything else to.</p>
+    <p>There is also no clean holdout left. All 115 events were used to sweep
+    the entry hour, pick the exits and repair filters. Forward data is the only
+    uncontaminated test that remains.</p>
+  </div>
+
+  <div class="compare">
+    <div class="cmp"><h3>What tuning produced</h3>
+      <div class="big" style="color:var(--good)">t 4.03</div>
+      <ul>
+        <li>entry T+18h — best of 10 swept hours</li>
+        <li>134 events, perp filter relaxed to match</li>
+        <li>$1,000 &rarr; $6,180 · CAGR 162%</li>
+        <li>reported in the first version of this page</li>
+      </ul></div>
+    <div class="cmp bad-side"><h3>What honesty produces</h3>
+      <div class="big" style="color:var(--warn)">t 1.99</div>
+      <ul>
+        <li>entry T+12h — the original hypothesis, never swept</li>
+        <li>115 events, perp present by entry</li>
+        <li>$1,000 &rarr; $2,269 · CAGR 54%</li>
+        <li>DEV subset alone: t 1.14</li>
+      </ul></div>
+  </div>
+
+  <section>
+    <h2>The goal</h2>
+    <p>Find a repeatable edge with a nameable mechanism, honest costs and a survivable
+    tail — then size it so one bad event cannot end the account. Every earlier candidate
+    failed on one of those: unmodelled swap, a spread wider than the signal, a units bug,
+    or market beta wearing a hedge.</p>
+  </section>
+
+  <section>
+    <h2>Position — $1,000 at 30% per trade</h2>
+    <div class="kpis">
+      <div class="kpi"><div class="k">Final equity</div>
+        <div class="v pos">$2,269</div>
+        <div class="s">from $1,000</div></div>
+      <div class="kpi"><div class="k">CAGR</div>
+        <div class="v pos">+54%</div>
+        <div class="s">backtest, undiscounted</div></div>
+      <div class="kpi"><div class="k">Drawdown p90</div>
+        <div class="v neg">35.8%</div>
+        <div class="s">median 26.5% · size against this</div></div>
+      <div class="kpi"><div class="k">Win rate</div>
+        <div class="v">62.6%</div>
+        <div class="s">61 target / 39 stop / 15 time</div></div>
+      <div class="kpi"><div class="k">Per trade</div>
+        <div class="v">+2.71%</div>
+        <div class="s">median +14.77% · sd 14.6%</div></div>
+      <div class="kpi"><div class="k">Worst trade</div>
+        <div class="v neg">-50.6%</div>
+        <div class="s">$-152 at this size</div></div>
+    </div>
+  </section>
+
+  <section>
+    <h2>The rule</h2>
+    <div class="spec">
+      <dl>
+        <dt>Signal</dt><dd>A new USDT pair begins trading on Binance <em>spot</em></dd>
+        <dt>Filter</dt><dd>A perpetual must exist by the entry hour — Gate, KuCoin or OKX</dd>
+        <dt>Direction</dt><dd>Short. Never long.</dd>
+        <dt>Entry</dt><dd>T+12h from the first traded hour, at the close</dd>
+        <dt>Take profit</dt><dd>15% — a trailing exit was tested and refuted</dd>
+        <dt>Stop loss</dt><dd>15% — not optional</dd>
+        <dt>Max hold</dt><dd>72h, then exit at market</dd>
+        <dt>Leverage</dt><dd>1&times;</dd>
+        <dt>Costs</dt><dd>0.05% taker per side + 0.3% spread</dd>
+        <dt>Frequency</dt><dd>5.1 opportunities per month</dd>
+        <dt>Avg hold</dt><dd>26.6h</dd>
+      </dl>
+    </div>
+  </section>
+
+  <section>
+    <h2>Equity curve</h2>
+    <div class="chart">
+      <canvas id="eq" aria-label="Equity curve from 1000 to 2269 dollars"></canvas>
+      <div class="legend"><span>&mdash; equity</span>
+        <span>&middot; drawdown from peak</span>
+        <span>115 trades, chronological</span>
+        <span>one ordering; reshuffling gives p90 drawdown 35.8%</span></div>
+    </div>
+  </section>
+
+  <section>
+    <h2>How long must a forward test run?</h2>
+    <p>This is the number that decides what to do next. It follows from the measured
+    dispersion of 14.6% per trade and an arrival rate of about
+    5.1 events a month — not from intuition.</p>
+    <table class="plain">
+      <tr><th>If the true edge is</th><th>events for t = 2.0</th><th>months</th></tr>
+      <tr><td>the honest +2.71%</td><td>117</td><td>23</td></tr>
+      <tr><td>the tuned +4.86%</td><td>36</td><td>7</td></tr>
+      <tr><td>the best cohort +8.68%</td><td>11</td><td>2</td></tr>
+    </table>
+    <p style="margin-top:14px"><strong>Three months is about 15 events.</strong> That
+    cannot confirm an edge — the mean would carry a &plusmn;3.8pp error bar. What it
+    <em>can</em> do is detect a broken strategy: if the true win rate is
+    63% there is only a 3.5% chance of observing 40% or worse over 15
+    trades. So three months is a disaster detector, not a validation.</p>
+  </section>
+
+  <section>
+    <h2>Where the edge concentrates</h2>
+    <p>One split, declared before it was examined: did a perpetual already exist, or did
+    it appear only after Binance listed the spot pair? The second group is where the
+    Binance listing <em>is</em> the price-discovery event.</p>
+    <div class="cohorts"><div class="coh"><h3>Perp appeared after spot</h3><div class="big pos">+8.53%</div><div class="meta">n 37 &middot; t 4.36 &middot; win 81.1%</div><div class="meta" style="margin-top:6px">clears the grid bar</div></div>
+<div class="coh"><h3>Perp existed already</h3><div class="big pos">+0.47%</div><div class="meta">n 70 &middot; t 0.28 &middot; win 54.3%</div><div class="meta" style="margin-top:6px">below the bar</div></div>
+<div class="coh"><h3>Near-simultaneous</h3><div class="big neg">-4.66%</div><div class="meta">n 8 &middot; t -0.55 &middot; win 50.0%</div><div class="meta" style="margin-top:6px">n too small to read</div></div></div>
+  </section>
+
+  <section>
+    <h2>Reliability gates</h2>
+    <div class="gates"><div class="gate"><div class="gate-h"><span class="chip no">fail</span><strong>Significance</strong></div><div class="gate-v m">t 1.99 vs bar 3.55</div><p>About 84 configurations were evaluated, which puts the bar at 3.55. The untuned rule reaches 1.99. On the DEV subset that was never used to choose anything it reaches only 1.14. This gate FAILS.</p></div>
+<div class="gate"><div class="gate-h"><span class="chip ok">pass</span><strong>Both halves positive</strong></div><div class="gate-v m">+2.65% / +2.76%</div><p>2024-08-27–2025-08-06 at t 1.28; 2025-08-06–2026-07-18 at t 1.54.</p></div>
+<div class="gate"><div class="gate-h"><span class="chip ok">pass</span><strong>Two instruments agree</strong></div><div class="gate-v m">Gate 3.2% / Binance 1.99%</div><p>68 events priced on the Gate perp, 47 on Binance spot. Near-identical means, so the effect is not an artefact of one venue.</p></div>
+<div class="gate"><div class="gate-h"><span class="chip ok">pass</span><strong>Tail survivable</strong></div><div class="gate-v m">7 of 115 would liquidate unstopped</div><p>Worst adverse excursion +565.4%. A 1× short is gone near +95%. The 15% stop prevents every one of them — without it this ends the account.</p></div>
+<div class="gate"><div class="gate-h"><span class="chip mid">open</span><strong>Funding unmeasured</strong></div><div class="gate-v m">exposure mapped, not charged</div><p>The simulation charges fees and spread but not funding. A short usually RECEIVES funding on a hyped listing, so it may be a credit — but it is unverified. 110%/yr → t 1.75 · 219%/yr → t 1.5 · 548%/yr → t 0.77</p></div>
+<div class="gate"><div class="gate-h"><span class="chip mid">open</span><strong>Spread assumed</strong></div><div class="gate-v m">0.3%, unverifiable</div><p>Historical new-listing spreads are not published anywhere. Gate perps on thin tokens can be far wider than the 0.3% assumed here, and this is the single input most likely to be wrong.</p></div></div>
+  </section>
+
+  <section>
+    <h2>Trade ledger &mdash; all 115</h2>
+    <div class="tablewrap">
+      <table>
+        <thead><tr><th>Listed</th><th>Token</th><th>Perp gap</th><th>Cohort</th>
+        <th>P&amp;L</th><th>USD</th><th>Exit</th><th>Held</th><th>Worst</th><th>Equity</th>
+        </tr></thead>
+        <tbody><tr><td class="m">2024-08-27</td><td class="sym">DOGS</td><td class="m dim">-616h</td><td><span class="chip mid">existing</span></td><td class="m neg">-15.27%</td><td class="m neg">-45.82</td><td class="m dim">stop</td><td class="m dim">33h</td><td class="m dim">+36%</td><td class="m">954</td></tr>
+<tr><td class="m">2024-09-13</td><td class="sym">POL</td><td class="m dim">-160h</td><td><span class="chip mid">existing</span></td><td class="m pos">+9.89%</td><td class="m pos">+29.67</td><td class="m dim">time</td><td class="m dim">72h</td><td class="m dim">+2%</td><td class="m">982</td></tr>
+<tr><td class="m">2024-09-16</td><td class="sym">TURBO</td><td class="m dim">-11975h</td><td><span class="chip mid">existing</span></td><td class="m neg">-15.27%</td><td class="m neg">-45.82</td><td class="m dim">stop</td><td class="m dim">18h</td><td class="m dim">+49%</td><td class="m">937</td></tr>
+<tr><td class="m">2024-09-20</td><td class="sym">CATI</td><td class="m dim">+10h</td><td><span class="chip ok">new perp</span></td><td class="m pos">+14.77%</td><td class="m pos">+44.32</td><td class="m dim">target</td><td class="m dim">44h</td><td class="m dim">+10%</td><td class="m">979</td></tr>
+<tr><td class="m">2024-10-01</td><td class="sym">EIGEN</td><td class="m dim">+4h</td><td><span class="chip ok">new perp</span></td><td class="m pos">+14.77%</td><td class="m pos">+44.32</td><td class="m dim">target</td><td class="m dim">16h</td><td class="m dim">+2%</td><td class="m">1,022</td></tr>
+<tr><td class="m">2024-10-18</td><td class="sym">LUMIA</td><td class="m dim">+9h</td><td><span class="chip ok">new perp</span></td><td class="m pos">+14.77%</td><td class="m pos">+44.32</td><td class="m dim">target</td><td class="m dim">11h</td><td class="m dim">+1%</td><td class="m">1,068</td></tr>
+<tr><td class="m">2024-10-31</td><td class="sym">AIA</td><td class="m dim">+8h</td><td><span class="chip ok">new perp</span></td><td class="m pos">+14.77%</td><td class="m pos">+44.32</td><td class="m dim">target</td><td class="m dim">65h</td><td class="m dim">+2%</td><td class="m">1,115</td></tr>
+<tr><td class="m">2024-11-07</td><td class="sym">CETUS</td><td class="m dim">-13073h</td><td><span class="chip mid">existing</span></td><td class="m neg">-15.27%</td><td class="m neg">-45.82</td><td class="m dim">stop</td><td class="m dim">7h</td><td class="m dim">+69%</td><td class="m">1,064</td></tr>
+<tr><td class="m">2024-11-11</td><td class="sym">PNUT</td><td class="m dim">-86h</td><td><span class="chip mid">existing</span></td><td class="m neg">-15.27%</td><td class="m neg">-45.82</td><td class="m dim">stop</td><td class="m dim">2h</td><td class="m dim">+565%</td><td class="m">1,015</td></tr>
+<tr><td class="m">2024-11-11</td><td class="sym">ACT</td><td class="m dim">+6h</td><td><span class="chip ok">new perp</span></td><td class="m neg">-15.27%</td><td class="m neg">-45.82</td><td class="m dim">stop</td><td class="m dim">6h</td><td class="m dim">+112%</td><td class="m">969</td></tr>
+<tr><td class="m">2024-11-27</td><td class="sym">THE</td><td class="m dim">+7h</td><td><span class="chip ok">new perp</span></td><td class="m neg">-15.27%</td><td class="m neg">-45.82</td><td class="m dim">stop</td><td class="m dim">10h</td><td class="m dim">+21%</td><td class="m">924</td></tr>
+<tr><td class="m">2024-12-07</td><td class="sym">ORCA</td><td class="m dim">+9h</td><td><span class="chip ok">new perp</span></td><td class="m pos">+14.77%</td><td class="m pos">+44.32</td><td class="m dim">target</td><td class="m dim">54h</td><td class="m dim">+0%</td><td class="m">965</td></tr>
+<tr><td class="m">2024-12-14</td><td class="sym">VELODROME</td><td class="m dim">-6277h</td><td><span class="chip mid">existing</span></td><td class="m pos">+14.77%</td><td class="m pos">+44.32</td><td class="m dim">target</td><td class="m dim">55h</td><td class="m dim">+7%</td><td class="m">1,008</td></tr>
+<tr><td class="m">2024-12-16</td><td class="sym">VANA</td><td class="m dim">+12h</td><td><span class="chip ok">new perp</span></td><td class="m pos">+14.77%</td><td class="m pos">+44.32</td><td class="m dim">target</td><td class="m dim">1h</td><td class="m dim">+4%</td><td class="m">1,053</td></tr>
+<tr><td class="m">2024-12-17</td><td class="sym">CAT</td><td class="m dim">-2778h</td><td><span class="chip mid">existing</span></td><td class="m pos">+14.77%</td><td class="m pos">+44.32</td><td class="m dim">target</td><td class="m dim">23h</td><td class="m dim">+1%</td><td class="m">1,099</td></tr>
+<tr><td class="m">2025-01-03</td><td class="sym">BIO</td><td class="m dim">+10h</td><td><span class="chip ok">new perp</span></td><td class="m pos">+14.77%</td><td class="m pos">+44.32</td><td class="m dim">target</td><td class="m dim">17h</td><td class="m dim">+5%</td><td class="m">1,148</td></tr>
+<tr><td class="m">2025-01-11</td><td class="sym">AIXBT</td><td class="m dim">-885h</td><td><span class="chip mid">existing</span></td><td class="m pos">+14.77%</td><td class="m pos">+44.32</td><td class="m dim">target</td><td class="m dim">55h</td><td class="m dim">+11%</td><td class="m">1,199</td></tr>
+<tr><td class="m">2025-01-11</td><td class="sym">CGPT</td><td class="m dim">-516h</td><td><span class="chip mid">existing</span></td><td class="m pos">+0.82%</td><td class="m pos">+2.46</td><td class="m dim">time</td><td class="m dim">72h</td><td class="m dim">+12%</td><td class="m">1,202</td></tr>
+<tr><td class="m">2025-01-11</td><td class="sym">COOKIE</td><td class="m dim">-166h</td><td><span class="chip mid">existing</span></td><td class="m pos">+14.77%</td><td class="m pos">+44.32</td><td class="m dim">target</td><td class="m dim">43h</td><td class="m dim">+2%</td><td class="m">1,255</td></tr>
+<tr><td class="m">2025-01-16</td><td class="sym">S</td><td class="m dim">-10h</td><td><span class="chip no">simultaneous</span></td><td class="m pos">+14.77%</td><td class="m pos">+44.32</td><td class="m dim">target</td><td class="m dim">38h</td><td class="m dim">+4%</td><td class="m">1,311</td></tr>
+<tr><td class="m">2025-01-17</td><td class="sym">SOLV</td><td class="m dim">+10h</td><td><span class="chip ok">new perp</span></td><td class="m pos">+14.77%</td><td class="m pos">+44.32</td><td class="m dim">target</td><td class="m dim">6h</td><td class="m dim">+10%</td><td class="m">1,369</td></tr>
+<tr><td class="m">2025-01-19</td><td class="sym">TRUMP</td><td class="m dim">-13h</td><td><span class="chip no">simultaneous</span></td><td class="m pos">+14.77%</td><td class="m pos">+44.32</td><td class="m dim">target</td><td class="m dim">1h</td><td class="m dim">+3%</td><td class="m">1,430</td></tr>
+<tr><td class="m">2025-02-09</td><td class="sym">CHEEMS</td><td class="m dim">-1941h</td><td><span class="chip mid">existing</span></td><td class="m neg">-15.27%</td><td class="m neg">-45.82</td><td class="m dim">stop</td><td class="m dim">20h</td><td class="m dim">+62%</td><td class="m">1,364</td></tr>
+<tr><td class="m">2025-02-13</td><td class="sym">HEI</td><td class="m dim">+8h</td><td><span class="chip ok">new perp</span></td><td class="m pos">+14.77%</td><td class="m pos">+44.32</td><td class="m dim">target</td><td class="m dim">3h</td><td class="m dim">+2%</td><td class="m">1,425</td></tr>
+<tr><td class="m">2025-02-28</td><td class="sym">SHELL</td><td class="m dim">-322h</td><td><span class="chip mid">existing</span></td><td class="m pos">+14.77%</td><td class="m pos">+44.32</td><td class="m dim">target</td><td class="m dim">8h</td><td class="m dim">+14%</td><td class="m">1,488</td></tr>
+<tr><td class="m">2025-02-28</td><td class="sym">RED</td><td class="m dim">-40h</td><td><span class="chip no">simultaneous</span></td><td class="m neg">-50.55%</td><td class="m neg">-151.65</td><td class="m dim">stop</td><td class="m dim">12h</td><td class="m dim">+266%</td><td class="m">1,262</td></tr>
+<tr><td class="m">2025-03-05</td><td class="sym">GPS</td><td class="m dim">-1118h</td><td><span class="chip mid">existing</span></td><td class="m pos">+14.77%</td><td class="m pos">+44.32</td><td class="m dim">target</td><td class="m dim">24h</td><td class="m dim">+7%</td><td class="m">1,318</td></tr>
+<tr><td class="m">2025-03-13</td><td class="sym">EPIC</td><td class="m dim">+8h</td><td><span class="chip ok">new perp</span></td><td class="m neg">-15.27%</td><td class="m neg">-45.82</td><td class="m dim">stop</td><td class="m dim">25h</td><td class="m dim">+18%</td><td class="m">1,258</td></tr>
+<tr><td class="m">2025-03-19</td><td class="sym">BMT</td><td class="m dim">-156h</td><td><span class="chip mid">existing</span></td><td class="m pos">+14.77%</td><td class="m pos">+44.32</td><td class="m dim">target</td><td class="m dim">36h</td><td class="m dim">+2%</td><td class="m">1,313</td></tr>
+<tr><td class="m">2025-03-25</td><td class="sym">NIL</td><td class="m dim">-468h</td><td><span class="chip mid">existing</span></td><td class="m neg">-15.27%</td><td class="m neg">-45.82</td><td class="m dim">stop</td><td class="m dim">6h</td><td class="m dim">+21%</td><td class="m">1,253</td></tr>
+<tr><td class="m">2025-03-28</td><td class="sym">MUBARAK</td><td class="m dim">-237h</td><td><span class="chip mid">existing</span></td><td class="m pos">+14.77%</td><td class="m pos">+44.32</td><td class="m dim">target</td><td class="m dim">17h</td><td class="m dim">+9%</td><td class="m">1,309</td></tr>
+<tr><td class="m">2025-03-28</td><td class="sym">TUT</td><td class="m dim">-189h</td><td><span class="chip mid">existing</span></td><td class="m neg">-15.27%</td><td class="m neg">-45.82</td><td class="m dim">stop</td><td class="m dim">6h</td><td class="m dim">+43%</td><td class="m">1,249</td></tr>
+<tr><td class="m">2025-03-28</td><td class="sym">BANANAS31</td><td class="m dim">-2757h</td><td><span class="chip mid">existing</span></td><td class="m pos">+14.77%</td><td class="m pos">+44.32</td><td class="m dim">target</td><td class="m dim">17h</td><td class="m dim">+6%</td><td class="m">1,304</td></tr>
+<tr><td class="m">2025-04-10</td><td class="sym">BABY</td><td class="m dim">-109h</td><td><span class="chip mid">existing</span></td><td class="m neg">-15.27%</td><td class="m neg">-45.82</td><td class="m dim">stop</td><td class="m dim">13h</td><td class="m dim">+114%</td><td class="m">1,244</td></tr>
+<tr><td class="m">2025-04-12</td><td class="sym">ONDO</td><td class="m dim">-10741h</td><td><span class="chip mid">existing</span></td><td class="m pos">+0.76%</td><td class="m pos">+2.27</td><td class="m dim">time</td><td class="m dim">72h</td><td class="m dim">+5%</td><td class="m">1,247</td></tr>
+<tr><td class="m">2025-04-12</td><td class="sym">BIGTIME</td><td class="m dim">-13142h</td><td><span class="chip mid">existing</span></td><td class="m pos">+5.47%</td><td class="m pos">+16.40</td><td class="m dim">time</td><td class="m dim">72h</td><td class="m dim">+10%</td><td class="m">1,268</td></tr>
+<tr><td class="m">2025-04-12</td><td class="sym">VIRTUAL</td><td class="m dim">-3382h</td><td><span class="chip mid">existing</span></td><td class="m neg">-15.27%</td><td class="m neg">-45.82</td><td class="m dim">stop</td><td class="m dim">22h</td><td class="m dim">+18%</td><td class="m">1,210</td></tr>
+<tr><td class="m">2025-04-15</td><td class="sym">WCT</td><td class="m dim">-1164h</td><td><span class="chip mid">existing</span></td><td class="m neg">-15.27%</td><td class="m neg">-45.82</td><td class="m dim">stop</td><td class="m dim">5h</td><td class="m dim">+130%</td><td class="m">1,154</td></tr>
+<tr><td class="m">2025-04-24</td><td class="sym">INIT</td><td class="m dim">-188h</td><td><span class="chip mid">existing</span></td><td class="m neg">-15.27%</td><td class="m neg">-45.82</td><td class="m dim">stop</td><td class="m dim">5h</td><td class="m dim">+31%</td><td class="m">1,101</td></tr>
+<tr><td class="m">2025-04-28</td><td class="sym">SIGN</td><td class="m dim">+11h</td><td><span class="chip ok">new perp</span></td><td class="m pos">+14.77%</td><td class="m pos">+44.32</td><td class="m dim">target</td><td class="m dim">6h</td><td class="m dim">+65%</td><td class="m">1,150</td></tr>
+<tr><td class="m">2025-05-03</td><td class="sym">STO</td><td class="m dim">-686h</td><td><span class="chip mid">existing</span></td><td class="m pos">+14.77%</td><td class="m pos">+44.32</td><td class="m dim">target</td><td class="m dim">14h</td><td class="m dim">+8%</td><td class="m">1,201</td></tr>
+<tr><td class="m">2025-05-07</td><td class="sym">MNO</td><td class="m dim">-4294h</td><td><span class="chip mid">existing</span></td><td class="m pos">+14.77%</td><td class="m pos">+44.32</td><td class="m dim">target</td><td class="m dim">16h</td><td class="m dim">+10%</td><td class="m">1,254</td></tr>
+<tr><td class="m">2025-05-07</td><td class="sym">SYRUP</td><td class="m dim">-3324h</td><td><span class="chip mid">existing</span></td><td class="m neg">-15.27%</td><td class="m neg">-45.82</td><td class="m dim">stop</td><td class="m dim">2h</td><td class="m dim">+31%</td><td class="m">1,197</td></tr>
+<tr><td class="m">2025-05-15</td><td class="sym">NXPC</td><td class="m dim">+6h</td><td><span class="chip ok">new perp</span></td><td class="m pos">+14.77%</td><td class="m pos">+44.32</td><td class="m dim">target</td><td class="m dim">36h</td><td class="m dim">+14%</td><td class="m">1,250</td></tr>
+<tr><td class="m">2025-05-21</td><td class="sym">AWE</td><td class="m dim">+9h</td><td><span class="chip ok">new perp</span></td><td class="m pos">+2.38%</td><td class="m pos">+7.15</td><td class="m dim">time</td><td class="m dim">72h</td><td class="m dim">+6%</td><td class="m">1,259</td></tr>
+<tr><td class="m">2025-05-22</td><td class="sym">HAEDAL</td><td class="m dim">-516h</td><td><span class="chip mid">existing</span></td><td class="m neg">-15.27%</td><td class="m neg">-45.82</td><td class="m dim">stop</td><td class="m dim">7h</td><td class="m dim">+19%</td><td class="m">1,201</td></tr>
+<tr><td class="m">2025-05-28</td><td class="sym">A</td><td class="m dim">+8h</td><td><span class="chip ok">new perp</span></td><td class="m pos">+14.77%</td><td class="m pos">+44.32</td><td class="m dim">target</td><td class="m dim">50h</td><td class="m dim">+7%</td><td class="m">1,254</td></tr>
+<tr><td class="m">2025-06-12</td><td class="sym">RESOLV</td><td class="m dim">-11h</td><td><span class="chip no">simultaneous</span></td><td class="m pos">+14.77%</td><td class="m pos">+44.32</td><td class="m dim">target</td><td class="m dim">13h</td><td class="m dim">+3%</td><td class="m">1,310</td></tr>
+<tr><td class="m">2025-06-13</td><td class="sym">HOME</td><td class="m dim">-37h</td><td><span class="chip no">simultaneous</span></td><td class="m neg">-15.27%</td><td class="m neg">-45.82</td><td class="m dim">stop</td><td class="m dim">26h</td><td class="m dim">+25%</td><td class="m">1,250</td></tr>
+<tr><td class="m">2025-06-17</td><td class="sym">SPK</td><td class="m dim">+9h</td><td><span class="chip ok">new perp</span></td><td class="m pos">+14.77%</td><td class="m pos">+44.32</td><td class="m dim">target</td><td class="m dim">15h</td><td class="m dim">+6%</td><td class="m">1,305</td></tr>
+<tr><td class="m">2025-06-25</td><td class="sym">NEWT</td><td class="m dim">-105h</td><td><span class="chip mid">existing</span></td><td class="m pos">+14.77%</td><td class="m pos">+44.32</td><td class="m dim">target</td><td class="m dim">19h</td><td class="m dim">+3%</td><td class="m">1,363</td></tr>
+<tr><td class="m">2025-06-27</td><td class="sym">SAHARA</td><td class="m dim">+2h</td><td><span class="chip ok">new perp</span></td><td class="m neg">-15.27%</td><td class="m neg">-45.82</td><td class="m dim">stop</td><td class="m dim">49h</td><td class="m dim">+34%</td><td class="m">1,301</td></tr>
+<tr><td class="m">2025-07-10</td><td class="sym">LA</td><td class="m dim">-828h</td><td><span class="chip mid">existing</span></td><td class="m pos">+14.77%</td><td class="m pos">+44.32</td><td class="m dim">target</td><td class="m dim">31h</td><td class="m dim">+2%</td><td class="m">1,358</td></tr>
+<tr><td class="m">2025-07-18</td><td class="sym">ERA</td><td class="m dim">+7h</td><td><span class="chip ok">new perp</span></td><td class="m pos">+14.77%</td><td class="m pos">+44.32</td><td class="m dim">target</td><td class="m dim">21h</td><td class="m dim">+3%</td><td class="m">1,419</td></tr>
+<tr><td class="m">2025-07-19</td><td class="sym">C</td><td class="m dim">-65h</td><td><span class="chip mid">existing</span></td><td class="m pos">+14.77%</td><td class="m pos">+44.32</td><td class="m dim">target</td><td class="m dim">6h</td><td class="m dim">+5%</td><td class="m">1,481</td></tr>
+<tr><td class="m">2025-07-30</td><td class="sym">TREE</td><td class="m dim">+6h</td><td><span class="chip ok">new perp</span></td><td class="m pos">+14.77%</td><td class="m pos">+44.32</td><td class="m dim">target</td><td class="m dim">3h</td><td class="m dim">+2%</td><td class="m">1,547</td></tr>
+<tr><td class="m">2025-08-06</td><td class="sym">TOWNS</td><td class="m dim">+4h</td><td><span class="chip ok">new perp</span></td><td class="m neg">-15.27%</td><td class="m neg">-45.82</td><td class="m dim">stop</td><td class="m dim">3h</td><td class="m dim">+24%</td><td class="m">1,476</td></tr>
+<tr><td class="m">2025-08-06</td><td class="sym">PROVE</td><td class="m dim">+8h</td><td><span class="chip ok">new perp</span></td><td class="m pos">+14.77%</td><td class="m pos">+44.32</td><td class="m dim">target</td><td class="m dim">19h</td><td class="m dim">+8%</td><td class="m">1,542</td></tr>
+<tr><td class="m">2025-08-19</td><td class="sym">PLUME</td><td class="m dim">-5007h</td><td><span class="chip mid">existing</span></td><td class="m pos">+4.73%</td><td class="m pos">+14.20</td><td class="m dim">time</td><td class="m dim">72h</td><td class="m dim">+2%</td><td class="m">1,563</td></tr>
+<tr><td class="m">2025-08-28</td><td class="sym">DOLO</td><td class="m dim">-2987h</td><td><span class="chip mid">existing</span></td><td class="m neg">-15.27%</td><td class="m neg">-45.82</td><td class="m dim">stop</td><td class="m dim">11h</td><td class="m dim">+58%</td><td class="m">1,492</td></tr>
+<tr><td class="m">2025-08-30</td><td class="sym">MITO</td><td class="m dim">-10h</td><td><span class="chip no">simultaneous</span></td><td class="m neg">-15.27%</td><td class="m neg">-45.82</td><td class="m dim">stop</td><td class="m dim">19h</td><td class="m dim">+45%</td><td class="m">1,423</td></tr>
+<tr><td class="m">2025-09-02</td><td class="sym">WLFI</td><td class="m dim">-203h</td><td><span class="chip mid">existing</span></td><td class="m pos">+14.77%</td><td class="m pos">+44.32</td><td class="m dim">target</td><td class="m dim">51h</td><td class="m dim">+9%</td><td class="m">1,487</td></tr>
+<tr><td class="m">2025-09-03</td><td class="sym">SOMI</td><td class="m dim">-166h</td><td><span class="chip mid">existing</span></td><td class="m neg">-15.27%</td><td class="m neg">-45.82</td><td class="m dim">stop</td><td class="m dim">2h</td><td class="m dim">+32%</td><td class="m">1,418</td></tr>
+<tr><td class="m">2025-09-09</td><td class="sym">OPEN</td><td class="m dim">+6h</td><td><span class="chip ok">new perp</span></td><td class="m pos">+14.77%</td><td class="m pos">+44.32</td><td class="m dim">target</td><td class="m dim">2h</td><td class="m dim">+5%</td><td class="m">1,481</td></tr>
+<tr><td class="m">2025-09-11</td><td class="sym">LINEA</td><td class="m dim">-206h</td><td><span class="chip mid">existing</span></td><td class="m neg">-15.27%</td><td class="m neg">-45.82</td><td class="m dim">stop</td><td class="m dim">67h</td><td class="m dim">+27%</td><td class="m">1,413</td></tr>
+<tr><td class="m">2025-09-12</td><td class="sym">HOLO</td><td class="m dim">+5h</td><td><span class="chip ok">new perp</span></td><td class="m pos">+6.47%</td><td class="m pos">+19.40</td><td class="m dim">time</td><td class="m dim">72h</td><td class="m dim">+4%</td><td class="m">1,441</td></tr>
+<tr><td class="m">2025-09-12</td><td class="sym">PUMP</td><td class="m dim">-1508h</td><td><span class="chip mid">existing</span></td><td class="m neg">-15.27%</td><td class="m neg">-45.82</td><td class="m dim">stop</td><td class="m dim">43h</td><td class="m dim">+53%</td><td class="m">1,375</td></tr>
+<tr><td class="m">2025-09-15</td><td class="sym">AVNT</td><td class="m dim">-139h</td><td><span class="chip mid">existing</span></td><td class="m pos">+14.77%</td><td class="m pos">+44.32</td><td class="m dim">target</td><td class="m dim">16h</td><td class="m dim">+10%</td><td class="m">1,436</td></tr>
+<tr><td class="m">2025-09-16</td><td class="sym">ZKC</td><td class="m dim">+3h</td><td><span class="chip ok">new perp</span></td><td class="m pos">+14.77%</td><td class="m pos">+44.32</td><td class="m dim">target</td><td class="m dim">14h</td><td class="m dim">+3%</td><td class="m">1,499</td></tr>
+<tr><td class="m">2025-09-17</td><td class="sym">SKY</td><td class="m dim">-186h</td><td><span class="chip mid">existing</span></td><td class="m pos">+9.79%</td><td class="m pos">+29.38</td><td class="m dim">time</td><td class="m dim">72h</td><td class="m dim">+1%</td><td class="m">1,543</td></tr>
+<tr><td class="m">2025-09-18</td><td class="sym">BARD</td><td class="m dim">+7h</td><td><span class="chip ok">new perp</span></td><td class="m pos">+14.77%</td><td class="m pos">+44.32</td><td class="m dim">target</td><td class="m dim">16h</td><td class="m dim">+14%</td><td class="m">1,612</td></tr>
+<tr><td class="m">2025-09-22</td><td class="sym">0G</td><td class="m dim">-104h</td><td><span class="chip mid">existing</span></td><td class="m neg">-15.27%</td><td class="m neg">-45.82</td><td class="m dim">stop</td><td class="m dim">3h</td><td class="m dim">+58%</td><td class="m">1,538</td></tr>
+<tr><td class="m">2025-09-24</td><td class="sym">HEMI</td><td class="m dim">-592h</td><td><span class="chip mid">existing</span></td><td class="m neg">-15.27%</td><td class="m neg">-45.82</td><td class="m dim">stop</td><td class="m dim">6h</td><td class="m dim">+43%</td><td class="m">1,468</td></tr>
+<tr><td class="m">2025-09-26</td><td class="sym">XPL</td><td class="m dim">-806h</td><td><span class="chip mid">existing</span></td><td class="m neg">-15.27%</td><td class="m neg">-45.82</td><td class="m dim">stop</td><td class="m dim">4h</td><td class="m dim">+38%</td><td class="m">1,400</td></tr>
+<tr><td class="m">2025-09-27</td><td class="sym">MIRA</td><td class="m dim">+3h</td><td><span class="chip ok">new perp</span></td><td class="m pos">+14.77%</td><td class="m pos">+44.32</td><td class="m dim">target</td><td class="m dim">16h</td><td class="m dim">+4%</td><td class="m">1,462</td></tr>
+<tr><td class="m">2025-09-30</td><td class="sym">FF</td><td class="m dim">+3h</td><td><span class="chip ok">new perp</span></td><td class="m pos">+14.77%</td><td class="m pos">+44.32</td><td class="m dim">target</td><td class="m dim">10h</td><td class="m dim">+6%</td><td class="m">1,527</td></tr>
+<tr><td class="m">2025-09-30</td><td class="sym">EDEN</td><td class="m dim">+4h</td><td><span class="chip ok">new perp</span></td><td class="m neg">-15.27%</td><td class="m neg">-45.82</td><td class="m dim">stop</td><td class="m dim">2h</td><td class="m dim">+23%</td><td class="m">1,457</td></tr>
+<tr><td class="m">2025-10-01</td><td class="sym">NOM</td><td class="m dim">+8h</td><td><span class="chip ok">new perp</span></td><td class="m pos">+14.77%</td><td class="m pos">+44.32</td><td class="m dim">target</td><td class="m dim">30h</td><td class="m dim">+2%</td><td class="m">1,522</td></tr>
+<tr><td class="m">2025-10-03</td><td class="sym">2Z</td><td class="m dim">+10h</td><td><span class="chip ok">new perp</span></td><td class="m pos">+14.77%</td><td class="m pos">+44.32</td><td class="m dim">target</td><td class="m dim">39h</td><td class="m dim">+2%</td><td class="m">1,589</td></tr>
+<tr><td class="m">2025-10-04</td><td class="sym">MORPHO</td><td class="m dim">-7574h</td><td><span class="chip mid">existing</span></td><td class="m neg">-6.02%</td><td class="m neg">-18.07</td><td class="m dim">time</td><td class="m dim">72h</td><td class="m dim">+10%</td><td class="m">1,560</td></tr>
+<tr><td class="m">2025-10-07</td><td class="sym">ASTER</td><td class="m dim">-396h</td><td><span class="chip mid">existing</span></td><td class="m pos">+14.77%</td><td class="m pos">+44.32</td><td class="m dim">target</td><td class="m dim">50h</td><td class="m dim">+4%</td><td class="m">1,630</td></tr>
+<tr><td class="m">2025-10-10</td><td class="sym">WAL</td><td class="m dim">-4718h</td><td><span class="chip mid">existing</span></td><td class="m pos">+14.77%</td><td class="m pos">+44.32</td><td class="m dim">target</td><td class="m dim">2h</td><td class="m dim">+3%</td><td class="m">1,702</td></tr>
+<tr><td class="m">2025-10-14</td><td class="sym">EUL</td><td class="m dim">-22486h</td><td><span class="chip mid">existing</span></td><td class="m pos">+14.77%</td><td class="m pos">+44.32</td><td class="m dim">target</td><td class="m dim">9h</td><td class="m dim">+9%</td><td class="m">1,777</td></tr>
+<tr><td class="m">2025-10-14</td><td class="sym">ENSO</td><td class="m dim">+6h</td><td><span class="chip ok">new perp</span></td><td class="m pos">+14.77%</td><td class="m pos">+44.32</td><td class="m dim">target</td><td class="m dim">4h</td><td class="m dim">+14%</td><td class="m">1,856</td></tr>
+<tr><td class="m">2025-10-15</td><td class="sym">YB</td><td class="m dim">-105h</td><td><span class="chip mid">existing</span></td><td class="m pos">+14.77%</td><td class="m pos">+44.32</td><td class="m dim">target</td><td class="m dim">10h</td><td class="m dim">+14%</td><td class="m">1,938</td></tr>
+<tr><td class="m">2025-10-18</td><td class="sym">ZBT</td><td class="m dim">+11h</td><td><span class="chip ok">new perp</span></td><td class="m pos">+14.77%</td><td class="m pos">+44.32</td><td class="m dim">target</td><td class="m dim">14h</td><td class="m dim">+7%</td><td class="m">2,024</td></tr>
+<tr><td class="m">2025-10-25</td><td class="sym">F</td><td class="m dim">-7742h</td><td><span class="chip mid">existing</span></td><td class="m pos">+14.77%</td><td class="m pos">+44.32</td><td class="m dim">target</td><td class="m dim">54h</td><td class="m dim">+13%</td><td class="m">2,114</td></tr>
+<tr><td class="m">2025-10-25</td><td class="sym">GIGGLE</td><td class="m dim">-375h</td><td><span class="chip mid">existing</span></td><td class="m pos">+14.77%</td><td class="m pos">+44.32</td><td class="m dim">target</td><td class="m dim">22h</td><td class="m dim">+7%</td><td class="m">2,208</td></tr>
+<tr><td class="m">2025-11-04</td><td class="sym">ITE</td><td class="m dim">-108h</td><td><span class="chip mid">existing</span></td><td class="m neg">-15.27%</td><td class="m neg">-45.82</td><td class="m dim">stop</td><td class="m dim">25h</td><td class="m dim">+91%</td><td class="m">2,106</td></tr>
+<tr><td class="m">2025-11-05</td><td class="sym">MMT</td><td class="m dim">+11h</td><td><span class="chip ok">new perp</span></td><td class="m pos">+14.77%</td><td class="m pos">+44.32</td><td class="m dim">target</td><td class="m dim">1h</td><td class="m dim">+12%</td><td class="m">2,200</td></tr>
+<tr><td class="m">2025-11-06</td><td class="sym">SAPIEN</td><td class="m dim">-1862h</td><td><span class="chip mid">existing</span></td><td class="m neg">-15.27%</td><td class="m neg">-45.82</td><td class="m dim">stop</td><td class="m dim">6h</td><td class="m dim">+19%</td><td class="m">2,099</td></tr>
+<tr><td class="m">2025-11-12</td><td class="sym">ALLO</td><td class="m dim">+9h</td><td><span class="chip ok">new perp</span></td><td class="m neg">-15.27%</td><td class="m neg">-45.82</td><td class="m dim">stop</td><td class="m dim">2h</td><td class="m dim">+15%</td><td class="m">2,003</td></tr>
+<tr><td class="m">2025-11-14</td><td class="sym">BANK</td><td class="m dim">-4999h</td><td><span class="chip mid">existing</span></td><td class="m neg">-2.07%</td><td class="m neg">-6.20</td><td class="m dim">time</td><td class="m dim">72h</td><td class="m dim">+11%</td><td class="m">1,990</td></tr>
+<tr><td class="m">2025-11-14</td><td class="sym">MET</td><td class="m dim">-808h</td><td><span class="chip mid">existing</span></td><td class="m pos">+4.93%</td><td class="m pos">+14.79</td><td class="m dim">time</td><td class="m dim">72h</td><td class="m dim">+11%</td><td class="m">2,020</td></tr>
+<tr><td class="m">2025-11-28</td><td class="sym">AT</td><td class="m dim">-686h</td><td><span class="chip mid">existing</span></td><td class="m neg">-15.27%</td><td class="m neg">-45.82</td><td class="m dim">stop</td><td class="m dim">60h</td><td class="m dim">+18%</td><td class="m">1,927</td></tr>
+<tr><td class="m">2026-01-07</td><td class="sym">BREV</td><td class="m dim">-157h</td><td><span class="chip mid">existing</span></td><td class="m neg">-15.27%</td><td class="m neg">-45.82</td><td class="m dim">stop</td><td class="m dim">3h</td><td class="m dim">+32%</td><td class="m">1,839</td></tr>
+<tr><td class="m">2026-01-08</td><td class="sym">ZKP</td><td class="m dim">-443h</td><td><span class="chip mid">existing</span></td><td class="m pos">+14.77%</td><td class="m pos">+44.32</td><td class="m dim">target</td><td class="m dim">22h</td><td class="m dim">+8%</td><td class="m">1,921</td></tr>
+<tr><td class="m">2026-01-15</td><td class="sym">FRAX</td><td class="m dim">+8h</td><td><span class="chip ok">new perp</span></td><td class="m pos">+14.77%</td><td class="m pos">+44.32</td><td class="m dim">target</td><td class="m dim">9h</td><td class="m dim">+26%</td><td class="m">2,006</td></tr>
+<tr><td class="m">2026-01-16</td><td class="sym">FOGO</td><td class="m dim">-106h</td><td><span class="chip mid">existing</span></td><td class="m pos">+14.77%</td><td class="m pos">+44.32</td><td class="m dim">target</td><td class="m dim">14h</td><td class="m dim">+2%</td><td class="m">2,095</td></tr>
+<tr><td class="m">2026-01-23</td><td class="sym">SENT</td><td class="m dim">-1643h</td><td><span class="chip mid">existing</span></td><td class="m pos">+14.77%</td><td class="m pos">+44.32</td><td class="m dim">target</td><td class="m dim">11h</td><td class="m dim">+9%</td><td class="m">2,187</td></tr>
+<tr><td class="m">2026-02-03</td><td class="sym">ZAMA</td><td class="m dim">-567h</td><td><span class="chip mid">existing</span></td><td class="m pos">+14.77%</td><td class="m pos">+44.32</td><td class="m dim">target</td><td class="m dim">12h</td><td class="m dim">+4%</td><td class="m">2,284</td></tr>
+<tr><td class="m">2026-02-13</td><td class="sym">ESP</td><td class="m dim">-40h</td><td><span class="chip no">simultaneous</span></td><td class="m pos">+14.77%</td><td class="m pos">+44.32</td><td class="m dim">target</td><td class="m dim">57h</td><td class="m dim">+6%</td><td class="m">2,386</td></tr>
+<tr><td class="m">2026-03-04</td><td class="sym">MANTRA</td><td class="m dim">+8h</td><td><span class="chip ok">new perp</span></td><td class="m pos">+14.77%</td><td class="m pos">+44.32</td><td class="m dim">target</td><td class="m dim">37h</td><td class="m dim">+12%</td><td class="m">2,491</td></tr>
+<tr><td class="m">2026-03-05</td><td class="sym">ROBO</td><td class="m dim">-157h</td><td><span class="chip mid">existing</span></td><td class="m pos">+14.77%</td><td class="m pos">+44.32</td><td class="m dim">target</td><td class="m dim">17h</td><td class="m dim">+0%</td><td class="m">2,602</td></tr>
+<tr><td class="m">2026-03-06</td><td class="sym">OPN</td><td class="m dim">-517h</td><td><span class="chip mid">existing</span></td><td class="m pos">+14.77%</td><td class="m pos">+44.32</td><td class="m dim">target</td><td class="m dim">23h</td><td class="m dim">+10%</td><td class="m">2,717</td></tr>
+<tr><td class="m">2026-03-12</td><td class="sym">NIGHT</td><td class="m dim">-2204h</td><td><span class="chip mid">existing</span></td><td class="m neg">-15.27%</td><td class="m neg">-45.82</td><td class="m dim">stop</td><td class="m dim">26h</td><td class="m dim">+16%</td><td class="m">2,592</td></tr>
+<tr><td class="m">2026-03-27</td><td class="sym">XAUT</td><td class="m dim">-8555h</td><td><span class="chip mid">existing</span></td><td class="m neg">-1.58%</td><td class="m neg">-4.73</td><td class="m dim">time</td><td class="m dim">72h</td><td class="m dim">+3%</td><td class="m">2,580</td></tr>
+<tr><td class="m">2026-04-22</td><td class="sym">CHIP</td><td class="m dim">-112h</td><td><span class="chip mid">existing</span></td><td class="m neg">-15.27%</td><td class="m neg">-45.82</td><td class="m dim">stop</td><td class="m dim">2h</td><td class="m dim">+147%</td><td class="m">2,462</td></tr>
+<tr><td class="m">2026-04-30</td><td class="sym">MEGA</td><td class="m dim">-2148h</td><td><span class="chip mid">existing</span></td><td class="m pos">+14.77%</td><td class="m pos">+44.32</td><td class="m dim">target</td><td class="m dim">38h</td><td class="m dim">+4%</td><td class="m">2,571</td></tr>
+<tr><td class="m">2026-05-15</td><td class="sym">AIGENSYN</td><td class="m dim">-346h</td><td><span class="chip mid">existing</span></td><td class="m neg">-15.27%</td><td class="m neg">-45.82</td><td class="m dim">stop</td><td class="m dim">2h</td><td class="m dim">+19%</td><td class="m">2,453</td></tr>
+<tr><td class="m">2026-05-23</td><td class="sym">GENIUS</td><td class="m dim">-886h</td><td><span class="chip mid">existing</span></td><td class="m neg">-15.27%</td><td class="m neg">-45.82</td><td class="m dim">stop</td><td class="m dim">30h</td><td class="m dim">+35%</td><td class="m">2,341</td></tr>
+<tr><td class="m">2026-05-23</td><td class="sym">OPG</td><td class="m dim">-736h</td><td><span class="chip mid">existing</span></td><td class="m pos">+4.39%</td><td class="m pos">+13.16</td><td class="m dim">time</td><td class="m dim">72h</td><td class="m dim">+10%</td><td class="m">2,372</td></tr>
+<tr><td class="m">2026-06-19</td><td class="sym">RE</td><td class="m dim">-14h</td><td><span class="chip no">simultaneous</span></td><td class="m neg">-15.27%</td><td class="m neg">-45.82</td><td class="m dim">stop</td><td class="m dim">7h</td><td class="m dim">+136%</td><td class="m">2,263</td></tr>
+<tr><td class="m">2026-07-02</td><td class="sym">GRAM</td><td class="m dim">-371h</td><td><span class="chip mid">existing</span></td><td class="m neg">-5.81%</td><td class="m neg">-17.42</td><td class="m dim">time</td><td class="m dim">72h</td><td class="m dim">+9%</td><td class="m">2,224</td></tr>
+<tr><td class="m">2026-07-18</td><td class="sym">AERO</td><td class="m dim">-20219h</td><td><span class="chip mid">existing</span></td><td class="m pos">+6.77%</td><td class="m pos">+20.31</td><td class="m dim">time</td><td class="m dim">72h</td><td class="m dim">+2%</td><td class="m">2,269</td></tr></tbody>
+      </table>
+    </div>
+    <div class="tnote">&ldquo;Worst&rdquo; is the largest adverse excursion while open.
+    &ldquo;Perp gap&rdquo; is hours between the spot listing and the first shortable
+    perpetual; negative means the perp already existed.</div>
+  </section>
+
+  <section>
+    <h2>What is still wrong with this</h2>
+    <ul class="caveats">
+      <li><strong>No clean holdout exists</strong>
+        <span>All 115 events were used to search. A date split now cannot undo
+        having looked. The trailing-exit test was given a properly sealed holdout because
+        that idea was untouched — and it failed on DEV, so the holdout was never spent.</span></li>
+      <li><strong>Four measurement bugs were found, and every fix helped</strong>
+        <span>The worst anchored the entry to midnight instead of the first traded hour,
+        wrong by over six hours for 112 of 116 events. Another inherited a 12h perp cutoff
+        from an earlier entry time. Each was demonstrable, but a run of favourable errors
+        implies the undiscovered ones are probably favourable too.</span></li>
+      <li><strong>Funding is not charged</strong>
+        <span>Average hold is 26.6h, about 3.3 funding
+        periods on Gate. At a plausible 219%/yr rate the t falls to
+        1.5. A short often receives funding rather than paying, so this
+        may be a credit — but it is unmeasured either way.</span></li>
+      <li><strong>Spread is a guess</strong>
+        <span>0.3% assumed; historical new-listing spreads are not
+        published. This is the input most likely to be wrong and it moves the result
+        directly.</span></li>
+      <li><strong>Survivorship runs in your favour, which is unusual</strong>
+        <span>Tokens delisted after collapsing are absent, and those fell hardest. The
+        measured effect is understated — the one bias in this project that flatters
+        nothing.</span></li>
+      <li><strong>Without the stop this ends the account</strong>
+        <span>7 of 115 events moved far enough
+        against the short to liquidate a 1&times; position. A short's loss is unbounded in
+        a way a long's is not.</span></li>
+    </ul>
+  </section>
+
+  <footer>
+    Untuned configuration &middot; entry T+12h &middot; TP 15% /
+    SL 15% &middot; 115 events &middot; Gate perpetual pricing where
+    available, Binance spot otherwise &middot; t 1.99 against a bar of 3.55
+  </footer>
+</div>
+
+<script>
+const DATA = {"curve":[{"dt":"2024-08-27 00:00:00+00:00","equity":954.1824999999999},{"dt":"2024-09-13 22:00:00+00:00","equity":982.4961887798306},{"dt":"2024-09-16 22:00:00+00:00","equity":937.4806696504107},{"dt":"2024-09-20 23:00:00+00:00","equity":979.0274692276428},{"dt":"2024-10-01 17:00:00+00:00","equity":1022.4155190951388},{"dt":"2024-10-18 21:00:00+00:00","equity":1067.7264188626377},{"dt":"2024-10-31 20:00:00+00:00","equity":1115.0453844305828},{"dt":"2024-11-07 00:00:00+00:00","equity":1063.9567925294346},{"dt":"2024-11-11 22:00:00+00:00","equity":1015.2089521877173},{"dt":"2024-11-11 22:00:00+00:00","equity":968.6946160208565},{"dt":"2024-11-27 22:00:00+00:00","equity":924.311450451321},{"dt":"2024-12-07 01:00:00+00:00","equity":965.2746231566974},{"dt":"2024-12-14 02:00:00+00:00","equity":1008.0531812684444},{"dt":"2024-12-16 23:00:00+00:00","equity":1052.7275781293088},{"dt":"2024-12-17 21:00:00+00:00","equity":1099.3818325730545},{"dt":"2025-01-03 22:00:00+00:00","equity":1148.1036869381107},{"dt":"2025-01-11 01:00:00+00:00","equity":1198.9847720839905},{"dt":"2025-01-11 01:00:00+00:00","equity":1201.9388498960473},{"dt":"2025-01-11 01:00:00+00:00","equity":1255.2057748763154},{"dt":"2025-01-16 20:00:00+00:00","equity":1310.8333568043965},{"dt":"2025-01-17 22:00:00+00:00","equity":1368.9262140945755},{"dt":"2025-01-19 20:00:00+00:00","equity":1429.5936015877119},{"dt":"2025-02-09 23:00:00+00:00","equity":1364.093196746967},{"dt":"2025-02-13 20:00:00+00:00","equity":1424.5463969938007},{"dt":"2025-02-28 01:00:00+00:00","equity":1487.6787319425734},{"dt":"2025-02-28 22:00:00+00:00","equity":1262.0692351684374},{"dt":"2025-03-05 01:00:00+00:00","equity":1318.0009884980147},{"dt":"2025-03-13 20:00:00+00:00","equity":1257.6134782075071},{"dt":"2025-03-19 03:00:00+00:00","equity":1313.3477635279683},{"dt":"2025-03-25 01:00:00+00:00","equity":1253.1734523725256},{"dt":"2025-03-28 09:00:00+00:00","equity":1308.710966848045},{"dt":"2025-03-28 09:00:00+00:00","equity":1248.7491021244848},{"dt":"2025-03-28 09:00:00+00:00","equity":1304.0905404578866},{"dt":"2025-04-10 23:00:00+00:00","equity":1244.3403721204572},{"dt":"2025-04-12 02:00:00+00:00","equity":1247.1681997329545},{"dt":"2025-04-12 02:00:00+00:00","equity":1267.6266006648007},{"dt":"2025-04-12 02:00:00+00:00","equity":1209.5471188888412},{"dt":"2025-04-15 23:00:00+00:00","equity":1154.1286937691516},{"dt":"2025-04-24 23:00:00+00:00","equity":1101.2494023423835},{"dt":"2025-04-28 23:00:00+00:00","equity":1150.0540227306922},{"dt":"2025-05-03 04:00:00+00:00","equity":1201.0215418830596},{"dt":"2025-05-07 03:00:00+00:00","equity":1254.247814065462},{"dt":"2025-05-07 03:00:00+00:00","equity":1196.7813148445177},{"dt":"2025-05-15 19:00:00+00:00","equity":1249.8196707651396},{"dt":"2025-05-21 20:00:00+00:00","equity":1258.7569826574097},{"dt":"2025-05-22 03:00:00+00:00","equity":1201.083884604504},{"dt":"2025-05-28 20:00:00+00:00","equity":1254.312919660464},{"dt":"2025-06-12 02:00:00+00:00","equity":1309.9009324775168},{"dt":"2025-06-13 03:00:00+00:00","equity":1249.8845465037282},{"dt":"2025-06-17 21:00:00+00:00","equity":1305.276304893407},{"dt":"2025-06-25 02:00:00+00:00","equity":1363.1228875355207},{"dt":"2025-06-27 00:00:00+00:00","equity":1300.668004635862},{"dt":"2025-07-10 04:00:00+00:00","equity":1358.3103589313118},{"dt":"2025-07-18 03:00:00+00:00","equity":1418.5072782632503},{"dt":"2025-07-19 02:00:00+00:00","equity":1481.371974567682},{"dt":"2025-07-30 02:00:00+00:00","equity":1547.0226770505851},{"dt":"2025-08-06 02:00:00+00:00","equity":1476.14196554482},{"dt":"2025-08-06 05:00:00+00:00","equity":1541.5608871028526},{"dt":"2025-08-19 03:00:00+00:00","equity":1563.458615755772},{"dt":"2025-08-28 04:00:00+00:00","equity":1491.824850628382},{"dt":"2025-08-30 03:00:00+00:00","equity":1423.4731655347161},{"dt":"2025-09-02 01:00:00+00:00","equity":1486.557937548301},{"dt":"2025-09-03 02:00:00+00:00","equity":1418.4475692446817},{"dt":"2025-09-09 01:00:00+00:00","equity":1481.3096193946828},{"dt":"2025-09-11 04:00:00+00:00","equity":1413.4397159080668},{"dt":"2025-09-12 00:00:00+00:00","equity":1440.8535066692841},{"dt":"2025-09-12 00:00:00+00:00","equity":1374.8372011274644},{"dt":"2025-09-15 17:00:00+00:00","equity":1435.7665487884308},{"dt":"2025-09-16 02:00:00+00:00","equity":1499.396132814362},{"dt":"2025-09-17 20:00:00+00:00","equity":1543.4440555400427},{"dt":"2025-09-18 23:00:00+00:00","equity":1611.8456374714385},{"dt":"2025-09-22 22:00:00+00:00","equity":1537.994899976591},{"dt":"2025-09-24 00:00:00+00:00","equity":1467.5278186469136},{"dt":"2025-09-26 01:00:00+00:00","equity":1400.2893628160584},{"dt":"2025-09-27 00:00:00+00:00","equity":1462.3466866526592},{"dt":"2025-09-30 01:00:00+00:00","equity":1527.1542359383884},{"dt":"2025-09-30 23:00:00+00:00","equity":1457.1838467332814},{"dt":"2025-10-01 20:00:00+00:00","equity":1521.7625918608835},{"dt":"2025-10-03 01:00:00+00:00","equity":1589.2033055256782},{"dt":"2025-10-04 03:00:00+00:00","equity":1560.4836841367471},{"dt":"2025-10-07 00:00:00+00:00","equity":1629.6404198084774},{"dt":"2025-10-10 19:00:00+00:00","equity":1701.8620091133396},{"dt":"2025-10-14 02:00:00+00:00","equity":1777.28427870222},{"dt":"2025-10-14 21:00:00+00:00","equity":1856.0490747236056},{"dt":"2025-10-15 23:00:00+00:00","equity":1938.304529592669},{"dt":"2025-10-18 01:00:00+00:00","equity":2024.2053405828922},{"dt":"2025-10-25 18:00:00+00:00","equity":2113.9130607641746},{"dt":"2025-10-25 18:00:00+00:00","equity":2207.596402834591},{"dt":"2025-11-04 01:00:00+00:00","equity":2106.4498546477175},{"dt":"2025-11-05 00:00:00+00:00","equity":2199.802446081068},{"dt":"2025-11-06 22:00:00+00:00","equity":2099.0129975077484},{"dt":"2025-11-12 02:00:00+00:00","equity":2002.841469494437},{"dt":"2025-11-14 02:00:00+00:00","equity":1990.427714743386},{"dt":"2025-11-14 02:00:00+00:00","equity":2019.868999629423},{"dt":"2025-11-28 02:00:00+00:00","equity":1927.3236517389018},{"dt":"2026-01-07 02:00:00+00:00","equity":1839.0185003253548},{"dt":"2026-01-08 02:00:00+00:00","equity":1920.5192027135238},{"dt":"2026-01-15 20:00:00+00:00","equity":2005.6318124797804},{"dt":"2026-01-16 02:00:00+00:00","equity":2094.516400329353},{"dt":"2026-01-23 01:00:00+00:00","equity":2187.340130900949},{"dt":"2026-02-03 01:00:00+00:00","equity":2284.277577152152},{"dt":"2026-02-13 01:00:00+00:00","equity":2385.5110486775925},{"dt":"2026-03-04 20:00:00+00:00","equity":2491.230934577362},{"dt":"2026-03-05 04:00:00+00:00","equity":2601.6360615204944},{"dt":"2026-03-06 01:00:00+00:00","equity":2716.934067676929},{"dt":"2026-03-12 03:00:00+00:00","equity":2592.450941031141},{"dt":"2026-03-27 02:00:00+00:00","equity":2580.1975024092912},{"dt":"2026-04-22 01:00:00+00:00","equity":2461.9793033426536},{"dt":"2026-04-30 23:00:00+00:00","equity":2571.088071118542},{"dt":"2026-05-15 05:00:00+00:00","equity":2453.287243420068},{"dt":"2026-05-23 00:00:00+00:00","equity":2340.883755144669},{"dt":"2026-05-23 00:00:00+00:00","equity":2371.689431571046},{"dt":"2026-06-19 02:00:00+00:00","equity":2263.0245510400396},{"dt":"2026-07-02 20:00:00+00:00","equity":2223.6134232607487},{"dt":"2026-07-18 04:00:00+00:00","equity":2268.7647829562848}],"trades":[{"date":"2024-08-27","base":"DOGS","src":"bin","gap_h":-616.1,"cohort":"perp_before","pnl":-15.27,"usd":-45.82,"reason":"stop","hours":33,"mae":35.6,"equity":954.18},{"date":"2024-09-13","base":"POL","src":"bin","gap_h":-160.0,"cohort":"perp_before","pnl":9.89,"usd":29.67,"reason":"time","hours":72,"mae":1.6,"equity":982.5},{"date":"2024-09-16","base":"TURBO","src":"bin","gap_h":-11975.2,"cohort":"perp_before","pnl":-15.27,"usd":-45.82,"reason":"stop","hours":18,"mae":48.9,"equity":937.48},{"date":"2024-09-20","base":"CATI","src":"bin","gap_h":10.1,"cohort":"perp_after","pnl":14.77,"usd":44.32,"reason":"target","hours":44,"mae":9.6,"equity":979.03},{"date":"2024-10-01","base":"EIGEN","src":"bin","gap_h":4.3,"cohort":"perp_after","pnl":14.77,"usd":44.32,"reason":"target","hours":16,"mae":1.5,"equity":1022.42},{"date":"2024-10-18","base":"LUMIA","src":"bin","gap_h":9.4,"cohort":"perp_after","pnl":14.77,"usd":44.32,"reason":"target","hours":11,"mae":1.1,"equity":1067.73},{"date":"2024-10-31","base":"AIA","src":"bin","gap_h":8.0,"cohort":"perp_after","pnl":14.77,"usd":44.32,"reason":"target","hours":65,"mae":2.0,"equity":1115.05},{"date":"2024-11-07","base":"CETUS","src":"bin","gap_h":-13072.8,"cohort":"perp_before","pnl":-15.27,"usd":-45.82,"reason":"stop","hours":7,"mae":68.6,"equity":1063.96},{"date":"2024-11-11","base":"PNUT","src":"bin","gap_h":-85.6,"cohort":"perp_before","pnl":-15.27,"usd":-45.82,"reason":"stop","hours":2,"mae":565.4,"equity":1015.21},{"date":"2024-11-11","base":"ACT","src":"bin","gap_h":6.0,"cohort":"perp_after","pnl":-15.27,"usd":-45.82,"reason":"stop","hours":6,"mae":111.5,"equity":968.69},{"date":"2024-11-27","base":"THE","src":"bin","gap_h":7.1,"cohort":"perp_after","pnl":-15.27,"usd":-45.82,"reason":"stop","hours":10,"mae":21.2,"equity":924.31},{"date":"2024-12-07","base":"ORCA","src":"bin","gap_h":9.0,"cohort":"perp_after","pnl":14.77,"usd":44.32,"reason":"target","hours":54,"mae":0.4,"equity":965.27},{"date":"2024-12-14","base":"VELODROME","src":"bin","gap_h":-6276.7,"cohort":"perp_before","pnl":14.77,"usd":44.32,"reason":"target","hours":55,"mae":6.8,"equity":1008.05},{"date":"2024-12-16","base":"VANA","src":"bin","gap_h":11.5,"cohort":"perp_after","pnl":14.77,"usd":44.32,"reason":"target","hours":1,"mae":4.2,"equity":1052.73},{"date":"2024-12-17","base":"CAT","src":"bin","gap_h":-2778.0,"cohort":"perp_before","pnl":14.77,"usd":44.32,"reason":"target","hours":23,"mae":1.2,"equity":1099.38},{"date":"2025-01-03","base":"BIO","src":"bin","gap_h":10.0,"cohort":"perp_after","pnl":14.77,"usd":44.32,"reason":"target","hours":17,"mae":5.1,"equity":1148.1},{"date":"2025-01-11","base":"AIXBT","src":"bin","gap_h":-885.1,"cohort":"perp_before","pnl":14.77,"usd":44.32,"reason":"target","hours":55,"mae":11.0,"equity":1198.98},{"date":"2025-01-11","base":"CGPT","src":"bin","gap_h":-515.5,"cohort":"perp_before","pnl":0.82,"usd":2.46,"reason":"time","hours":72,"mae":11.5,"equity":1201.94},{"date":"2025-01-11","base":"COOKIE","src":"bin","gap_h":-165.9,"cohort":"perp_before","pnl":14.77,"usd":44.32,"reason":"target","hours":43,"mae":2.1,"equity":1255.21},{"date":"2025-01-16","base":"S","src":"bin","gap_h":-10.2,"cohort":"near_simultaneous","pnl":14.77,"usd":44.32,"reason":"target","hours":38,"mae":3.7,"equity":1310.83},{"date":"2025-01-17","base":"SOLV","src":"bin","gap_h":10.0,"cohort":"perp_after","pnl":14.77,"usd":44.32,"reason":"target","hours":6,"mae":10.2,"equity":1368.93},{"date":"2025-01-19","base":"TRUMP","src":"bin","gap_h":-13.1,"cohort":"near_simultaneous","pnl":14.77,"usd":44.32,"reason":"target","hours":1,"mae":2.7,"equity":1429.59},{"date":"2025-02-09","base":"CHEEMS","src":"bin","gap_h":-1941.0,"cohort":"perp_before","pnl":-15.27,"usd":-45.82,"reason":"stop","hours":20,"mae":62.5,"equity":1364.09},{"date":"2025-02-13","base":"HEI","src":"bin","gap_h":8.0,"cohort":"perp_after","pnl":14.77,"usd":44.32,"reason":"target","hours":3,"mae":2.2,"equity":1424.55},{"date":"2025-02-28","base":"SHELL","src":"bin","gap_h":-321.5,"cohort":"perp_before","pnl":14.77,"usd":44.32,"reason":"target","hours":8,"mae":14.2,"equity":1487.68},{"date":"2025-02-28","base":"RED","src":"bin","gap_h":-40.0,"cohort":"near_simultaneous","pnl":-50.55,"usd":-151.65,"reason":"stop","hours":12,"mae":265.8,"equity":1262.07},{"date":"2025-03-05","base":"GPS","src":"bin","gap_h":-1117.9,"cohort":"perp_before","pnl":14.77,"usd":44.32,"reason":"target","hours":24,"mae":7.2,"equity":1318.0},{"date":"2025-03-13","base":"EPIC","src":"bin","gap_h":8.0,"cohort":"perp_after","pnl":-15.27,"usd":-45.82,"reason":"stop","hours":25,"mae":18.2,"equity":1257.61},{"date":"2025-03-19","base":"BMT","src":"bin","gap_h":-156.0,"cohort":"perp_before","pnl":14.77,"usd":44.32,"reason":"target","hours":36,"mae":2.5,"equity":1313.35},{"date":"2025-03-25","base":"NIL","src":"bin","gap_h":-468.0,"cohort":"perp_before","pnl":-15.27,"usd":-45.82,"reason":"stop","hours":6,"mae":21.3,"equity":1253.17},{"date":"2025-03-28","base":"MUBARAK","src":"bin","gap_h":-237.0,"cohort":"perp_before","pnl":14.77,"usd":44.32,"reason":"target","hours":17,"mae":8.6,"equity":1308.71},{"date":"2025-03-28","base":"TUT","src":"bin","gap_h":-189.0,"cohort":"perp_before","pnl":-15.27,"usd":-45.82,"reason":"stop","hours":6,"mae":43.0,"equity":1248.75},{"date":"2025-03-28","base":"BANANAS31","src":"bin","gap_h":-2756.8,"cohort":"perp_before","pnl":14.77,"usd":44.32,"reason":"target","hours":17,"mae":6.4,"equity":1304.09},{"date":"2025-04-10","base":"BABY","src":"bin","gap_h":-109.2,"cohort":"perp_before","pnl":-15.27,"usd":-45.82,"reason":"stop","hours":13,"mae":114.1,"equity":1244.34},{"date":"2025-04-12","base":"ONDO","src":"bin","gap_h":-10740.6,"cohort":"perp_before","pnl":0.76,"usd":2.27,"reason":"time","hours":72,"mae":5.1,"equity":1247.17},{"date":"2025-04-12","base":"BIGTIME","src":"bin","gap_h":-13142.4,"cohort":"perp_before","pnl":5.47,"usd":16.4,"reason":"time","hours":72,"mae":10.2,"equity":1267.63},{"date":"2025-04-12","base":"VIRTUAL","src":"bin","gap_h":-3381.8,"cohort":"perp_before","pnl":-15.27,"usd":-45.82,"reason":"stop","hours":22,"mae":17.6,"equity":1209.55},{"date":"2025-04-15","base":"WCT","src":"bin","gap_h":-1164.0,"cohort":"perp_before","pnl":-15.27,"usd":-45.82,"reason":"stop","hours":5,"mae":129.6,"equity":1154.13},{"date":"2025-04-24","base":"INIT","src":"bin","gap_h":-188.3,"cohort":"perp_before","pnl":-15.27,"usd":-45.82,"reason":"stop","hours":5,"mae":30.8,"equity":1101.25},{"date":"2025-04-28","base":"SIGN","src":"bin","gap_h":11.1,"cohort":"perp_after","pnl":14.77,"usd":44.32,"reason":"target","hours":6,"mae":64.9,"equity":1150.05},{"date":"2025-05-03","base":"STO","src":"bin","gap_h":-685.5,"cohort":"perp_before","pnl":14.77,"usd":44.32,"reason":"target","hours":14,"mae":8.4,"equity":1201.02},{"date":"2025-05-07","base":"MNO","src":"bin","gap_h":-4293.5,"cohort":"perp_before","pnl":14.77,"usd":44.32,"reason":"target","hours":16,"mae":10.4,"equity":1254.25},{"date":"2025-05-07","base":"SYRUP","src":"bin","gap_h":-3323.6,"cohort":"perp_before","pnl":-15.27,"usd":-45.82,"reason":"stop","hours":2,"mae":30.7,"equity":1196.78},{"date":"2025-05-15","base":"NXPC","src":"bin","gap_h":6.0,"cohort":"perp_after","pnl":14.77,"usd":44.32,"reason":"target","hours":36,"mae":13.5,"equity":1249.82},{"date":"2025-05-21","base":"AWE","src":"bin","gap_h":8.6,"cohort":"perp_after","pnl":2.38,"usd":7.15,"reason":"time","hours":72,"mae":5.7,"equity":1258.76},{"date":"2025-05-22","base":"HAEDAL","src":"bin","gap_h":-516.0,"cohort":"perp_before","pnl":-15.27,"usd":-45.82,"reason":"stop","hours":7,"mae":18.8,"equity":1201.08},{"date":"2025-05-28","base":"A","src":"bin","gap_h":8.0,"cohort":"perp_after","pnl":14.77,"usd":44.32,"reason":"target","hours":50,"mae":7.3,"equity":1254.31},{"date":"2025-06-12","base":"RESOLV","src":"gate","gap_h":-10.9,"cohort":"near_simultaneous","pnl":14.77,"usd":44.32,"reason":"target","hours":13,"mae":3.3,"equity":1309.9},{"date":"2025-06-13","base":"HOME","src":"gate","gap_h":-36.9,"cohort":"near_simultaneous","pnl":-15.27,"usd":-45.82,"reason":"stop","hours":26,"mae":24.9,"equity":1249.88},{"date":"2025-06-17","base":"SPK","src":"gate","gap_h":9.1,"cohort":"perp_after","pnl":14.77,"usd":44.32,"reason":"target","hours":15,"mae":5.9,"equity":1305.28},{"date":"2025-06-25","base":"NEWT","src":"gate","gap_h":-105.4,"cohort":"perp_before","pnl":14.77,"usd":44.32,"reason":"target","hours":19,"mae":3.0,"equity":1363.12},{"date":"2025-06-27","base":"SAHARA","src":"gate","gap_h":2.4,"cohort":"perp_after","pnl":-15.27,"usd":-45.82,"reason":"stop","hours":49,"mae":34.1,"equity":1300.67},{"date":"2025-07-10","base":"LA","src":"gate","gap_h":-828.0,"cohort":"perp_before","pnl":14.77,"usd":44.32,"reason":"target","hours":31,"mae":2.2,"equity":1358.31},{"date":"2025-07-18","base":"ERA","src":"gate","gap_h":7.3,"cohort":"perp_after","pnl":14.77,"usd":44.32,"reason":"target","hours":21,"mae":2.7,"equity":1418.51},{"date":"2025-07-19","base":"C","src":"gate","gap_h":-65.0,"cohort":"perp_before","pnl":14.77,"usd":44.32,"reason":"target","hours":6,"mae":5.2,"equity":1481.37},{"date":"2025-07-30","base":"TREE","src":"gate","gap_h":6.3,"cohort":"perp_after","pnl":14.77,"usd":44.32,"reason":"target","hours":3,"mae":1.7,"equity":1547.02},{"date":"2025-08-06","base":"TOWNS","src":"gate","gap_h":4.2,"cohort":"perp_after","pnl":-15.27,"usd":-45.82,"reason":"stop","hours":3,"mae":24.0,"equity":1476.14},{"date":"2025-08-06","base":"PROVE","src":"gate","gap_h":7.7,"cohort":"perp_after","pnl":14.77,"usd":44.32,"reason":"target","hours":19,"mae":8.4,"equity":1541.56},{"date":"2025-08-19","base":"PLUME","src":"gate","gap_h":-5006.9,"cohort":"perp_before","pnl":4.73,"usd":14.2,"reason":"time","hours":72,"mae":2.5,"equity":1563.46},{"date":"2025-08-28","base":"DOLO","src":"gate","gap_h":-2987.0,"cohort":"perp_before","pnl":-15.27,"usd":-45.82,"reason":"stop","hours":11,"mae":57.8,"equity":1491.82},{"date":"2025-08-30","base":"MITO","src":"gate","gap_h":-9.8,"cohort":"near_simultaneous","pnl":-15.27,"usd":-45.82,"reason":"stop","hours":19,"mae":45.0,"equity":1423.47},{"date":"2025-09-02","base":"WLFI","src":"gate","gap_h":-203.0,"cohort":"perp_before","pnl":14.77,"usd":44.32,"reason":"target","hours":51,"mae":9.1,"equity":1486.56},{"date":"2025-09-03","base":"SOMI","src":"gate","gap_h":-166.5,"cohort":"perp_before","pnl":-15.27,"usd":-45.82,"reason":"stop","hours":2,"mae":32.0,"equity":1418.45},{"date":"2025-09-09","base":"OPEN","src":"gate","gap_h":6.4,"cohort":"perp_after","pnl":14.77,"usd":44.32,"reason":"target","hours":2,"mae":5.0,"equity":1481.31},{"date":"2025-09-11","base":"LINEA","src":"gate","gap_h":-206.3,"cohort":"perp_before","pnl":-15.27,"usd":-45.82,"reason":"stop","hours":67,"mae":26.7,"equity":1413.44},{"date":"2025-09-12","base":"HOLO","src":"gate","gap_h":5.4,"cohort":"perp_after","pnl":6.47,"usd":19.4,"reason":"time","hours":72,"mae":4.5,"equity":1440.85},{"date":"2025-09-12","base":"PUMP","src":"gate","gap_h":-1507.8,"cohort":"perp_before","pnl":-15.27,"usd":-45.82,"reason":"stop","hours":43,"mae":52.6,"equity":1374.84},{"date":"2025-09-15","base":"AVNT","src":"gate","gap_h":-139.1,"cohort":"perp_before","pnl":14.77,"usd":44.32,"reason":"target","hours":16,"mae":10.4,"equity":1435.77},{"date":"2025-09-16","base":"ZKC","src":"gate","gap_h":2.6,"cohort":"perp_after","pnl":14.77,"usd":44.32,"reason":"target","hours":14,"mae":3.4,"equity":1499.4},{"date":"2025-09-17","base":"SKY","src":"gate","gap_h":-186.4,"cohort":"perp_before","pnl":9.79,"usd":29.38,"reason":"time","hours":72,"mae":1.0,"equity":1543.44},{"date":"2025-09-18","base":"BARD","src":"gate","gap_h":7.2,"cohort":"perp_after","pnl":14.77,"usd":44.32,"reason":"target","hours":16,"mae":14.5,"equity":1611.85},{"date":"2025-09-22","base":"0G","src":"gate","gap_h":-104.1,"cohort":"perp_before","pnl":-15.27,"usd":-45.82,"reason":"stop","hours":3,"mae":58.0,"equity":1537.99},{"date":"2025-09-24","base":"HEMI","src":"gate","gap_h":-591.5,"cohort":"perp_before","pnl":-15.27,"usd":-45.82,"reason":"stop","hours":6,"mae":42.8,"equity":1467.53},{"date":"2025-09-26","base":"XPL","src":"gate","gap_h":-806.2,"cohort":"perp_before","pnl":-15.27,"usd":-45.82,"reason":"stop","hours":4,"mae":37.5,"equity":1400.29},{"date":"2025-09-27","base":"MIRA","src":"gate","gap_h":3.2,"cohort":"perp_after","pnl":14.77,"usd":44.32,"reason":"target","hours":16,"mae":3.7,"equity":1462.35},{"date":"2025-09-30","base":"FF","src":"gate","gap_h":3.0,"cohort":"perp_after","pnl":14.77,"usd":44.32,"reason":"target","hours":10,"mae":5.6,"equity":1527.15},{"date":"2025-09-30","base":"EDEN","src":"gate","gap_h":3.5,"cohort":"perp_after","pnl":-15.27,"usd":-45.82,"reason":"stop","hours":2,"mae":23.1,"equity":1457.18},{"date":"2025-10-01","base":"NOM","src":"gate","gap_h":7.8,"cohort":"perp_after","pnl":14.77,"usd":44.32,"reason":"target","hours":30,"mae":2.4,"equity":1521.76},{"date":"2025-10-03","base":"2Z","src":"gate","gap_h":9.6,"cohort":"perp_after","pnl":14.77,"usd":44.32,"reason":"target","hours":39,"mae":1.5,"equity":1589.2},{"date":"2025-10-04","base":"MORPHO","src":"gate","gap_h":-7573.9,"cohort":"perp_before","pnl":-6.02,"usd":-18.07,"reason":"time","hours":72,"mae":10.1,"equity":1560.48},{"date":"2025-10-07","base":"ASTER","src":"gate","gap_h":-395.7,"cohort":"perp_before","pnl":14.77,"usd":44.32,"reason":"target","hours":50,"mae":4.4,"equity":1629.64},{"date":"2025-10-10","base":"WAL","src":"gate","gap_h":-4718.0,"cohort":"perp_before","pnl":14.77,"usd":44.32,"reason":"target","hours":2,"mae":2.9,"equity":1701.86},{"date":"2025-10-14","base":"EUL","src":"gate","gap_h":-22486.2,"cohort":"perp_before","pnl":14.77,"usd":44.32,"reason":"target","hours":9,"mae":9.0,"equity":1777.28},{"date":"2025-10-14","base":"ENSO","src":"gate","gap_h":6.5,"cohort":"perp_after","pnl":14.77,"usd":44.32,"reason":"target","hours":4,"mae":14.4,"equity":1856.05},{"date":"2025-10-15","base":"YB","src":"gate","gap_h":-105.1,"cohort":"perp_before","pnl":14.77,"usd":44.32,"reason":"target","hours":10,"mae":13.5,"equity":1938.3},{"date":"2025-10-18","base":"ZBT","src":"gate","gap_h":11.1,"cohort":"perp_after","pnl":14.77,"usd":44.32,"reason":"target","hours":14,"mae":7.4,"equity":2024.21},{"date":"2025-10-25","base":"F","src":"gate","gap_h":-7742.0,"cohort":"perp_before","pnl":14.77,"usd":44.32,"reason":"target","hours":54,"mae":13.2,"equity":2113.91},{"date":"2025-10-25","base":"GIGGLE","src":"gate","gap_h":-375.4,"cohort":"perp_before","pnl":14.77,"usd":44.32,"reason":"target","hours":22,"mae":6.7,"equity":2207.6},{"date":"2025-11-04","base":"ITE","src":"gate","gap_h":-108.0,"cohort":"perp_before","pnl":-15.27,"usd":-45.82,"reason":"stop","hours":25,"mae":90.6,"equity":2106.45},{"date":"2025-11-05","base":"MMT","src":"gate","gap_h":11.3,"cohort":"perp_after","pnl":14.77,"usd":44.32,"reason":"target","hours":1,"mae":11.6,"equity":2199.8},{"date":"2025-11-06","base":"SAPIEN","src":"gate","gap_h":-1862.2,"cohort":"perp_before","pnl":-15.27,"usd":-45.82,"reason":"stop","hours":6,"mae":19.1,"equity":2099.01},{"date":"2025-11-12","base":"ALLO","src":"gate","gap_h":8.6,"cohort":"perp_after","pnl":-15.27,"usd":-45.82,"reason":"stop","hours":2,"mae":15.3,"equity":2002.84},{"date":"2025-11-14","base":"BANK","src":"gate","gap_h":-4998.8,"cohort":"perp_before","pnl":-2.07,"usd":-6.2,"reason":"time","hours":72,"mae":10.9,"equity":1990.43},{"date":"2025-11-14","base":"MET","src":"gate","gap_h":-807.7,"cohort":"perp_before","pnl":4.93,"usd":14.79,"reason":"time","hours":72,"mae":10.9,"equity":2019.87},{"date":"2025-11-28","base":"AT","src":"gate","gap_h":-686.2,"cohort":"perp_before","pnl":-15.27,"usd":-45.82,"reason":"stop","hours":60,"mae":17.5,"equity":1927.32},{"date":"2026-01-07","base":"BREV","src":"gate","gap_h":-157.2,"cohort":"perp_before","pnl":-15.27,"usd":-45.82,"reason":"stop","hours":3,"mae":31.6,"equity":1839.02},{"date":"2026-01-08","base":"ZKP","src":"gate","gap_h":-442.8,"cohort":"perp_before","pnl":14.77,"usd":44.32,"reason":"target","hours":22,"mae":7.9,"equity":1920.52},{"date":"2026-01-15","base":"FRAX","src":"gate","gap_h":7.7,"cohort":"perp_after","pnl":14.77,"usd":44.32,"reason":"target","hours":9,"mae":25.6,"equity":2005.63},{"date":"2026-01-16","base":"FOGO","src":"gate","gap_h":-105.9,"cohort":"perp_before","pnl":14.77,"usd":44.32,"reason":"target","hours":14,"mae":1.5,"equity":2094.52},{"date":"2026-01-23","base":"SENT","src":"gate","gap_h":-1643.2,"cohort":"perp_before","pnl":14.77,"usd":44.32,"reason":"target","hours":11,"mae":8.9,"equity":2187.34},{"date":"2026-02-03","base":"ZAMA","src":"gate","gap_h":-566.8,"cohort":"perp_before","pnl":14.77,"usd":44.32,"reason":"target","hours":12,"mae":3.5,"equity":2284.28},{"date":"2026-02-13","base":"ESP","src":"gate","gap_h":-39.5,"cohort":"near_simultaneous","pnl":14.77,"usd":44.32,"reason":"target","hours":57,"mae":6.3,"equity":2385.51},{"date":"2026-03-04","base":"MANTRA","src":"gate","gap_h":8.5,"cohort":"perp_after","pnl":14.77,"usd":44.32,"reason":"target","hours":37,"mae":12.5,"equity":2491.23},{"date":"2026-03-05","base":"ROBO","src":"gate","gap_h":-156.7,"cohort":"perp_before","pnl":14.77,"usd":44.32,"reason":"target","hours":17,"mae":0.3,"equity":2601.64},{"date":"2026-03-06","base":"OPN","src":"gate","gap_h":-517.0,"cohort":"perp_before","pnl":14.77,"usd":44.32,"reason":"target","hours":23,"mae":10.5,"equity":2716.93},{"date":"2026-03-12","base":"NIGHT","src":"gate","gap_h":-2204.4,"cohort":"perp_before","pnl":-15.27,"usd":-45.82,"reason":"stop","hours":26,"mae":15.5,"equity":2592.45},{"date":"2026-03-27","base":"XAUT","src":"gate","gap_h":-8554.8,"cohort":"perp_before","pnl":-1.58,"usd":-4.73,"reason":"time","hours":72,"mae":2.8,"equity":2580.2},{"date":"2026-04-22","base":"CHIP","src":"gate","gap_h":-112.0,"cohort":"perp_before","pnl":-15.27,"usd":-45.82,"reason":"stop","hours":2,"mae":146.8,"equity":2461.98},{"date":"2026-04-30","base":"MEGA","src":"gate","gap_h":-2147.7,"cohort":"perp_before","pnl":14.77,"usd":44.32,"reason":"target","hours":38,"mae":4.0,"equity":2571.09},{"date":"2026-05-15","base":"AIGENSYN","src":"gate","gap_h":-346.2,"cohort":"perp_before","pnl":-15.27,"usd":-45.82,"reason":"stop","hours":2,"mae":18.6,"equity":2453.29},{"date":"2026-05-23","base":"GENIUS","src":"gate","gap_h":-886.2,"cohort":"perp_before","pnl":-15.27,"usd":-45.82,"reason":"stop","hours":30,"mae":35.4,"equity":2340.88},{"date":"2026-05-23","base":"OPG","src":"gate","gap_h":-735.8,"cohort":"perp_before","pnl":4.39,"usd":13.16,"reason":"time","hours":72,"mae":10.3,"equity":2371.69},{"date":"2026-06-19","base":"RE","src":"gate","gap_h":-13.5,"cohort":"near_simultaneous","pnl":-15.27,"usd":-45.82,"reason":"stop","hours":7,"mae":135.6,"equity":2263.02},{"date":"2026-07-02","base":"GRAM","src":"gate","gap_h":-371.0,"cohort":"perp_before","pnl":-5.81,"usd":-17.42,"reason":"time","hours":72,"mae":9.3,"equity":2223.61},{"date":"2026-07-18","base":"AERO","src":"gate","gap_h":-20218.9,"cohort":"perp_before","pnl":6.77,"usd":20.31,"reason":"time","hours":72,"mae":1.6,"equity":2268.76}],"start":1000.0};
+const cv = document.getElementById('eq');
+function draw() {
+  const dpr = window.devicePixelRatio || 1;
+  const w = cv.clientWidth, h = cv.clientHeight;
+  cv.width = w * dpr; cv.height = h * dpr;
+  const g = cv.getContext('2d'); g.scale(dpr, dpr); g.clearRect(0, 0, w, h);
+  const cs = getComputedStyle(document.documentElement);
+  const accent = cs.getPropertyValue('--accent').trim();
+  const line = cs.getPropertyValue('--line').trim();
+  const muted = cs.getPropertyValue('--muted').trim();
+  const bad = cs.getPropertyValue('--bad').trim();
+  const eq = [DATA.start].concat(DATA.trades.map(t => t.equity));
+  const pad = {l: 52, r: 12, t: 12, b: 22};
+  const iw = w - pad.l - pad.r, ih = h - pad.t - pad.b;
+  const lo = Math.min(...eq), hi = Math.max(...eq);
+  const X = i => pad.l + (i / (eq.length - 1)) * iw;
+  const Y = v => pad.t + ih - ((v - lo) / (hi - lo)) * ih;
+  g.strokeStyle = line; g.lineWidth = 1; g.font = '10px ui-monospace, monospace';
+  g.fillStyle = muted; g.textAlign = 'right';
+  for (let k = 0; k <= 4; k++) {
+    const v = lo + (hi - lo) * k / 4, y = Y(v);
+    g.beginPath(); g.moveTo(pad.l, y); g.lineTo(w - pad.r, y); g.stroke();
+    g.fillText('$' + Math.round(v).toLocaleString(), pad.l - 7, y + 3);
+  }
+  let peak = eq[0];
+  g.fillStyle = bad; g.globalAlpha = 0.10;
+  for (let i = 0; i < eq.length; i++) {
+    peak = Math.max(peak, eq[i]);
+    if (eq[i] < peak) g.fillRect(X(i), Y(peak), Math.max(iw / eq.length, 1.2), Y(eq[i]) - Y(peak));
+  }
+  g.globalAlpha = 1;
+  g.beginPath(); g.moveTo(X(0), Y(eq[0]));
+  for (let i = 1; i < eq.length; i++) g.lineTo(X(i), Y(eq[i]));
+  g.strokeStyle = accent; g.lineWidth = 1.8; g.lineJoin = 'round'; g.stroke();
+  g.beginPath(); g.arc(X(eq.length - 1), Y(eq[eq.length - 1]), 3.2, 0, 6.284);
+  g.fillStyle = accent; g.fill();
+  g.textAlign = 'left'; g.fillStyle = muted;
+  g.fillText(DATA.trades[0].date, pad.l, h - 6);
+  g.textAlign = 'right';
+  g.fillText(DATA.trades[DATA.trades.length - 1].date, w - pad.r, h - 6);
+}
+draw();
+addEventListener('resize', draw);
+if (window.matchMedia) matchMedia('(prefers-color-scheme: dark)').addEventListener('change', draw);
+new MutationObserver(draw).observe(document.documentElement,
+  {attributes: true, attributeFilter: ['data-theme']});
+</script>
+
+</body></html>
