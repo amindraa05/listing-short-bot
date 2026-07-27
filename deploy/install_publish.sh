@@ -135,7 +135,7 @@ systemctl start "${UNIT}.service" || true
 journalctl -u "${UNIT}.service" -n 12 --no-pager | sed 's/^/   /'
 
 say "verification"
-echo "   ports we listen on : $(ss -tlnp 2>/dev/null | grep -c listingbot || echo 0) (expected 0)"
+echo "   ports we listen on : $(ss -tlnp 2>/dev/null | grep -c listingbot || true) (expected 0)"
 echo "   nginx              : $(systemctl is-active nginx 2>/dev/null || echo n/a)"
 echo "   trading timer      : $(systemctl is-active listingbot.timer 2>/dev/null)"
 echo "   publish timer      : $(systemctl is-active ${UNIT}.timer 2>/dev/null)"

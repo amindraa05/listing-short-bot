@@ -71,7 +71,7 @@ say "systemd units"
 cat > "/etc/systemd/system/${UNIT_PREFIX}.service" <<UNIT
 [Unit]
 Description=Listing-short paper trader (records only, places no orders)
-Documentation=https://github.com/USER/listing-short-bot
+Documentation=https://amindraa05.github.io/listing-short-bot/
 After=network-online.target
 Wants=network-online.target
 
@@ -129,15 +129,17 @@ systemctl enable --now "${UNIT_PREFIX}.timer" >/dev/null
 ok "timer enabled and started"
 
 say "first run"
-if sudo -u "$APP_USER" env LISTINGBOT_HOME="$APP_DIR" "$PY" -m listingbot.cli tick 2>&1 \
-     | sed 's/^/   /' ; then
+# cd first: the unit file sets WorkingDirectory, but this manual invocation needs the
+# package's parent directory on sys.path or python cannot find listingbot at all.
+if (cd "$APP_DIR" && sudo -u "$APP_USER" env LISTINGBOT_HOME="$APP_DIR" \
+      "$PY" -m listingbot.cli tick) 2>&1 | sed 's/^/   /' ; then
   ok "tick completed"
 else
   echo "   tick returned non-zero — check: journalctl -u ${UNIT_PREFIX}.service -n 50"
 fi
 
 say "verification — proof nothing else was disturbed"
-echo "   ports we listen on: $(ss -tlnp 2>/dev/null | grep -c listingbot || echo 0) (expected 0)"
+echo "   ports we listen on: $(ss -tlnp 2>/dev/null | grep -c listingbot || true) (expected 0)"
 echo "   nginx still active: $(systemctl is-active nginx 2>/dev/null || echo n/a)"
 echo "   other units untouched:"
 for u in tgmm-monitor.service climate-paper.service; do
@@ -145,7 +147,7 @@ for u in tgmm-monitor.service climate-paper.service; do
     printf '     %-26s %s\n' "$u" "$(systemctl is-active "$u" 2>/dev/null)"
 done
 echo
-echo "   status   : sudo -u $APP_USER env LISTINGBOT_HOME=$APP_DIR $PY -m listingbot.cli status"
+echo "   status   : cd $APP_DIR && sudo -u $APP_USER env LISTINGBOT_HOME=$APP_DIR $PY -m listingbot.cli status"
 echo "   logs     : journalctl -u ${UNIT_PREFIX}.service -f"
 echo "   next run : $(systemctl list-timers "${UNIT_PREFIX}.timer" --no-legend 2>/dev/null | awk '{print $1, $2}')"
 echo "   uninstall: bash $SRC/deploy/uninstall.sh"
