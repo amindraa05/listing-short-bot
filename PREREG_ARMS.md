@@ -117,3 +117,43 @@ Recorded so that the failure mode is nameable rather than deniable: **six appare
 discoveries in this project turned out to be artefacts of unexamined assumptions, and all
 four measurement bugs found during the research happened to flatter the result.** A run of
 favourable errors is itself evidence that the undiscovered ones are probably favourable too.
+
+---
+
+## Amendment 1 — liquidity discipline, 2026-07-28
+
+Made while the database still held **0 closed positions and 0 open positions**, so nothing
+below was chosen with knowledge of a forward outcome.
+
+**What changed.** Two execution mechanics, neither of them a rule parameter:
+
+1. **A participation gate.** Before an entry, the intended notional is compared against
+   what the contract actually traded in the previous hour. Above **3%** of it the notional
+   is cut to exactly 3%.
+2. **Order slicing.** An order larger than **25% of the visible bid depth** is split across
+   ticks, up to 6 slices over 30 minutes, and the position's VWAP, take profit and stop
+   move onto the running average as each slice lands.
+
+**Why this does not compromise the test.** The statistical test is on **percentage** returns
+per trade — mean, win rate, t. Cutting the notional changes the dollar P&L and leaves the
+percentage untouched. Skipping an event would be a different matter, because it removes a
+sample point, so **the gate never skips**: it only sizes down. The single existing refusal,
+a book too thin to fill the order at all, is unchanged and predates this amendment.
+
+**Why it was needed.** Measured on the 135 events of the research sample: the median entry
+hour trades $2.9M on Binance spot and the Gate perp runs a median 2.07× that. Against that
+median, size is a non-issue at any capital this account will hold. The tail is not:
+**RED traded $203k in its first hour and $1,072 in hour twelve.** A fixed-percentage order
+into that hour is the whole hour. The gate exists for the RED case, not the median case.
+
+The 3% number comes from what execution cost does to the edge, not from taste. Against a
+2.71% mean, extra slippage of 0.25% eats 9% of it and takes t from 1.99 to 1.80; 1.00% eats
+37% and takes t to 1.25. A 1% tolerance is not a safety margin — it is a third of the thesis.
+
+**Also corrected the same day:** the Gate taker fee, from an assumed 0.05% to the 0.075%
+that Gate's own contract spec reports on all 850 USDT perps. Round trip 15bps, not 10.
+A measurement input, not a rule parameter, and again corrected before any position closed.
+
+**Still frozen and untouched:** entry hours, take profit, stop loss, max hold, leverage,
+the 20% sizing rule, the arms themselves, and the stop signal.
+

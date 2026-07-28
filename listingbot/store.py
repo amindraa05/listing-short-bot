@@ -86,6 +86,14 @@ CREATE TABLE IF NOT EXISTS positions (
   pnl_usdt REAL,
   mae_pct REAL DEFAULT 0,        -- worst adverse excursion seen while open
   mfe_pct REAL DEFAULT 0,
+  -- execution: what was intended, what was actually achievable, and how it got there
+  target_notional_usdt REAL,     -- before the liquidity gate
+  participation_pct REAL,        -- of the entry hour's traded volume
+  sized_down INTEGER DEFAULT 0,
+  slices_planned INTEGER DEFAULT 1,
+  slices_done INTEGER DEFAULT 1,
+  fill_complete INTEGER DEFAULT 1,
+  entry_book_depth_usdt REAL,
   status TEXT NOT NULL DEFAULT 'open'
 );
 
@@ -134,6 +142,15 @@ def _migrate(cx):
     cols = {r["name"] for r in cx.execute("PRAGMA table_info(positions)")}
     if "arm" not in cols:
         cx.execute("ALTER TABLE positions ADD COLUMN arm TEXT NOT NULL DEFAULT 't12'")
+    for col, ddl in (("target_notional_usdt", "REAL"),
+                     ("participation_pct", "REAL"),
+                     ("sized_down", "INTEGER DEFAULT 0"),
+                     ("slices_planned", "INTEGER DEFAULT 1"),
+                     ("slices_done", "INTEGER DEFAULT 1"),
+                     ("fill_complete", "INTEGER DEFAULT 1"),
+                     ("entry_book_depth_usdt", "REAL")):
+        if col not in cols:
+            cx.execute(f"ALTER TABLE positions ADD COLUMN {col} {ddl}")
 
     # Per-arm books. The single pre-arm 'equity' key becomes t12's, so a test already
     # running keeps its history instead of silently restarting at 1,000.
@@ -272,6 +289,13 @@ def stale_events(cx, ts_ms, days):
 
 def open_positions(cx):
     return cx.execute("SELECT * FROM positions WHERE status='open'").fetchall()
+
+
+def filling_positions(cx):
+    """Open but not yet fully filled. They already carry exposure, so the exit checks
+    must see them too — a partially filled short is a short."""
+    return cx.execute("SELECT * FROM positions WHERE status='open' AND "
+                      "fill_complete=0 ORDER BY id").fetchall()
 
 
 def record_run(cx, new_events=0, opened=0, closed=0, errors=None):

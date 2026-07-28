@@ -75,6 +75,27 @@ ordering happened to produce.
 sweep, just on newer data. A trailing take-profit was tested against a properly sealed
 holdout and refuted on DEV, so the holdout was never spent.
 
+## Liquidity discipline
+
+Size is checked against what the contract actually **trades**, not against what is resting
+in the book, because on these contracts they are wildly different things — AKE trades $4.4M
+an hour with $42 on the bid. Liquidity is in the flow.
+
+```
+participation gate   notional above 3% of the last hour's traded volume is cut to 3%
+slicing              an order above 25% of visible bid depth is split across ticks,
+                     up to 6 slices over 30 minutes, VWAP and TP/SL tracking the average
+never skips          the gate only sizes down; removing an event would bias the sample
+```
+
+Measured on the 135 research events: the median entry hour trades $2.9M on spot, and the
+perp runs a median 2.07× that. At any capital this account will hold, the median event is a
+non-issue — a $5,000 position is 0.08% of the entry hour. The gate exists for the tail:
+**RED traded $203k in its first hour and $1,072 in hour twelve.**
+
+The 3% threshold comes from arithmetic, not taste. Against the 2.71% edge, 0.25% of extra
+slippage eats 9% of it (t 1.99 → 1.80) and 1.00% eats 37% (t → 1.25).
+
 ## Honest fills
 
 The backtest assumed a flat 0.3% spread because historical new-listing spreads are

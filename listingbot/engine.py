@@ -14,6 +14,10 @@ Deliberate properties, each one a lesson from the research:
     +15h is tradeable by t18 and not by t12, and half the fall from $6,180 to $2,269 in
     the research came from getting exactly that wrong
   * both fills walk the live order book, so slippage is measured rather than assumed
+  * the intended size is checked against the entry hour's TRADED VOLUME before anything
+    is sent, and cut to fit if it is too large a share of it
+  * an order too big for the visible book is sliced across ticks instead of swept, since
+    on these contracts the liquidity is in the flow and not in the book
   * funding is fetched per contract and signed correctly: a short RECEIVES a positive rate
   * the stop is enforced before the target on every check, and a 1x short is force-closed
     near +95% because pretending it survives is fiction
@@ -151,6 +155,54 @@ def recheck_pending(cx):
     cx.commit()
 
 
+def plan_size(contract, equity):
+    """Decide what can honestly be traded, before anything is sent.
+
+    Two separate limits, because they fail in different ways:
+
+      participation  the order as a share of what the contract actually TRADES in an
+                     hour. Too large and the price moves because of you. Measured at
+                     3% because extra slippage of 0.25% already eats 9% of the 2.71%
+                     edge, and 1% eats 37%.
+      book depth     the order as a share of what is RESTING right now. Too large and a
+                     single sweep is fiction, so the order is sliced instead.
+
+    Returning a smaller notional is safe for the forward test: the statistical test is on
+    percentage returns, and cutting the notional changes the dollar P&L without touching
+    the percentage. Skipping an event would NOT be safe, because that removes it from the
+    sample, so this function never skips — it sizes down, and lets the existing
+    book-too-thin rule be the only thing that refuses.
+    """
+    want = equity * C.POSITION_PCT
+    note = None
+    hourly = venues.gate_hourly_volume(contract)
+    part = (want / hourly * 100) if hourly else None
+
+    if hourly and want > C.PARTICIPATION_FLOOR_USDT:
+        cap = hourly * C.MAX_PARTICIPATION_PCT / 100
+        if want > cap:
+            note = (f"sized down from {want:.0f} to {cap:.0f} USDT: the entry hour "
+                    f"traded {hourly:,.0f} and {want:.0f} would have been "
+                    f"{part:.1f}% of it")
+            # No floor here. MIN_BOOK_NOTIONAL_USDT is a minimum BOOK DEPTH, and using it
+            # as a minimum order size pushed the order back above the very cap this gate
+            # exists to enforce — CHIP came out at 3.77% against a 3.00% limit. The
+            # book-depth check inside fills.quote is what refuses an unfillable order.
+            want = cap
+            part = want / hourly * 100
+
+    ob = venues.gate_order_book(contract, limit=100)
+    depth = fills.book_depth_usdt(ob["bids"]) if ob and ob["bids"] else 0.0
+    slices = 1
+    if depth > 0 and want > depth * C.SLICE_TRIGGER_BOOK_FRAC:
+        slices = min(C.SLICE_MAX,
+                     max(2, math.ceil(want / (depth * C.SLICE_TRIGGER_BOOK_FRAC))))
+        if want / slices < C.SLICE_MIN_USDT:
+            slices = max(1, int(want // C.SLICE_MIN_USDT))
+    return {"notional": want, "hourly_volume": hourly, "participation": part,
+            "slices": max(1, slices), "book_depth": depth, "note": note}
+
+
 def open_due_positions(cx):
     """One position per (listing, arm) whose entry hour has arrived.
 
@@ -170,7 +222,12 @@ def open_due_positions(cx):
             continue
 
         equity = store.get_equity(cx, arm)
-        q, err = fills.quote(e["perp_symbol"], "sell", equity * C.POSITION_PCT)
+        plan = plan_size(e["perp_symbol"], equity)
+        if plan["note"]:
+            log.info("%s/%s: %s", e["symbol"], arm, plan["note"])
+        first = plan["notional"] / plan["slices"]
+
+        q, err = fills.quote(e["perp_symbol"], "sell", first)
         if q is None:
             log.warning("%s/%s: cannot open — %s", e["symbol"], arm, err)
             store.set_plan(cx, e["id"], arm, status="skipped",
@@ -181,12 +238,16 @@ def open_due_positions(cx):
         pid_cur = cx.execute(
             "INSERT INTO positions(event_id,arm,base,perp_symbol,opened_ms,entry_vwap,"
             "entry_mid,entry_slippage_bps,entry_spread_bps,entry_fee_usdt,notional_usdt,"
-            "equity_at_open,tp_price,sl_price,deadline_ms) "
-            "VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+            "equity_at_open,tp_price,sl_price,deadline_ms,target_notional_usdt,"
+            "participation_pct,sized_down,slices_planned,slices_done,fill_complete,"
+            "entry_book_depth_usdt) "
+            "VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
             (e["id"], arm, e["base"], e["perp_symbol"], ts, entry, q["mid"],
              q["slippage_bps"], q["spread_bps"], q["fee_usdt"], q["notional_usdt"],
              equity, entry * (1 - C.TAKE_PROFIT), entry * (1 + C.STOP_LOSS),
-             ts + C.MAX_HOLD_HOURS * 3_600_000))
+             ts + C.MAX_HOLD_HOURS * 3_600_000, plan["notional"], plan["participation"],
+             1 if plan["note"] else 0, plan["slices"], 1,
+             1 if plan["slices"] == 1 else 0, plan["book_depth"]))
         pid = pid_cur.lastrowid
         cx.execute("INSERT INTO fills(position_id,ts_ms,kind,detail_json) VALUES(?,?,?,?)",
                    (pid, ts, "entry", json.dumps(q)))
@@ -194,11 +255,59 @@ def open_due_positions(cx):
         store.set_plan(cx, e["id"], arm, status="traded")
         opened += 1
         log.info("OPEN %s short %s @ %.8g (mid %.8g, slip %.1fbps, spread %.1fbps, "
-                 "%d levels) notional %.2f TP %.8g SL %.8g  book %.2f",
+                 "%d levels) notional %.2f of %.2f%s  part %s  TP %.8g SL %.8g",
                  arm, e["perp_symbol"], entry, q["mid"], q["slippage_bps"],
                  q["spread_bps"] or -1, q["levels_consumed"], q["notional_usdt"],
-                 entry * (1 - C.TAKE_PROFIT), entry * (1 + C.STOP_LOSS), equity)
+                 plan["notional"],
+                 f" (slice 1/{plan['slices']})" if plan["slices"] > 1 else "",
+                 "?" if plan["participation"] is None else f"{plan['participation']:.2f}%",
+                 entry * (1 - C.TAKE_PROFIT), entry * (1 + C.STOP_LOSS))
     return opened
+
+
+def continue_filling(cx):
+    """Execute the next slice of any position still filling, one slice per tick.
+
+    Slicing the ENTRY only. A stop or a target has to cross immediately — waiting for a
+    better fill while the position runs against you is a worse trade than the slippage
+    it saves. The time exit could be sliced too and is not, because at the sizes this
+    account runs it would never trigger; that is the next piece if the capital grows.
+    """
+    ts = store.now_ms()
+    for p in store.filling_positions(cx):
+        done, planned = p["slices_done"], p["slices_planned"]
+        remaining = (p["target_notional_usdt"] or p["notional_usdt"]) - p["notional_usdt"]
+        if done >= planned or remaining < C.SLICE_MIN_USDT:
+            cx.execute("UPDATE positions SET fill_complete=1 WHERE id=?", (p["id"],))
+            cx.commit()
+            continue
+        size = min(remaining, (p["target_notional_usdt"] or 0) / max(1, planned))
+        q, err = fills.quote(p["perp_symbol"], "sell", size)
+        if q is None:
+            # The book thinned out mid-fill. Stop here and trade what was achieved
+            # rather than pretending the rest filled somewhere.
+            log.warning("%s: slice %d/%d abandoned (%s) — running with %.2f of %.2f",
+                        p["perp_symbol"], done + 1, planned, err,
+                        p["notional_usdt"], p["target_notional_usdt"])
+            cx.execute("UPDATE positions SET fill_complete=1 WHERE id=?", (p["id"],))
+            cx.commit()
+            continue
+
+        filled = p["notional_usdt"] + q["notional_usdt"]
+        vwap = ((p["entry_vwap"] * p["notional_usdt"] + q["vwap"] * q["notional_usdt"])
+                / filled)
+        cx.execute(
+            "UPDATE positions SET entry_vwap=?, notional_usdt=?, "
+            "entry_fee_usdt=entry_fee_usdt+?, slices_done=slices_done+1, "
+            "fill_complete=?, tp_price=?, sl_price=? WHERE id=?",
+            (vwap, filled, q["fee_usdt"], 1 if done + 1 >= planned else 0,
+             vwap * (1 - C.TAKE_PROFIT), vwap * (1 + C.STOP_LOSS), p["id"]))
+        cx.execute("INSERT INTO fills(position_id,ts_ms,kind,detail_json) VALUES(?,?,?,?)",
+                   (p["id"], ts, "entry", json.dumps(q)))
+        cx.commit()
+        log.info("FILL %s slice %d/%d  %.2f @ %.8g (slip %.1fbps) -> %.2f of %.2f, "
+                 "vwap %.8g", p["perp_symbol"], done + 1, planned, q["notional_usdt"],
+                 q["vwap"], q["slippage_bps"], filled, p["target_notional_usdt"], vwap)
 
 
 def _close(cx, p, reason, ts):
@@ -284,6 +393,7 @@ def tick(cx):
                       ("replan", lambda: replan_orphans(cx)),
                       ("recheck", lambda: recheck_pending(cx)),
                       ("open", lambda: open_due_positions(cx)),
+                      ("fill", lambda: continue_filling(cx)),
                       ("manage", lambda: manage_open_positions(cx)),
                       ("expire", lambda: expire_stale(cx))):
         try:

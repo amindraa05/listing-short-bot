@@ -102,6 +102,28 @@ def gate_order_book(contract, limit=50):
     return {"bids": bids, "asks": asks}
 
 
+def gate_hourly_volume(contract, hours=1):
+    """Quote-denominated volume traded on the perp over the last `hours` full hours.
+
+    The 'sum' field is quote volume; 'v' is contracts and would need the multiplier.
+    Returns None rather than 0 when unavailable, so a caller can tell "no data" from
+    "no trading" — the two justify opposite decisions.
+    """
+    d = _get(f"{C.GATE_FUTURES}/candlesticks?contract={contract}&interval=1h"
+             f"&limit={hours + 1}")
+    if not d:
+        return None
+    tot = 0.0
+    got = 0
+    for c in d[-(hours + 1):-1] or d[-1:]:
+        try:
+            tot += float(c.get("sum") or 0)
+            got += 1
+        except (TypeError, ValueError):
+            continue
+    return tot if got else None
+
+
 def gate_funding_history(contract, limit=200):
     """[(timestamp_s, rate)] most recent first, as Gate returns it."""
     d = _get(f"{C.GATE_FUTURES}/funding_rate?contract={contract}&limit={limit}")

@@ -99,6 +99,27 @@ QUOTE_ASSET = "USDT"
 PERP_MUST_EXIST_BY_HOURS = max(a["entry_hours"] for a in ARMS.values())
 MIN_BOOK_NOTIONAL_USDT = 200.0   # refuse to paper-fill into a book too thin to be real
 
+# ---- liquidity discipline ---------------------------------------------------
+# Measured 2026-07-28 on 135 events: median traded volume in the entry hour is $2.9M on
+# Binance spot, and the Gate perp runs a median 2.07x that, so about $6M. Against that a
+# small order is invisible. Against the tail it is not — RED's entry hour traded $1,072,
+# and its first hour had traded $203k, so the collapse is real rather than a data gap.
+#
+# The budget is set from what execution cost does to the edge, not from taste. Extra
+# slippage of 0.25% eats 9% of the 2.71% edge and takes t from 1.99 to 1.80; 1.00% eats
+# 37% and takes t to 1.25. So a 1% tolerance is not a safety margin, it is most of the
+# thesis.
+MAX_PARTICIPATION_PCT = 3.0      # of the entry hour's traded volume; above this, size down
+PARTICIPATION_FLOOR_USDT = 50.0  # below this the gate stops mattering, so stop applying it
+
+# Slicing. A single order is only realistic while it is small against the visible book;
+# beyond that the book has to be given time to refill. Note the two are different things:
+# AKE trades $4.4M an hour with $42 resting on the bid, so volume is in the flow, not in
+# the book, and above the trigger there is no size that a single sweep can do honestly.
+SLICE_TRIGGER_BOOK_FRAC = 0.25   # slice once the order exceeds this share of visible depth
+SLICE_MAX = 6                    # at one slice per tick, 6 x 5min = a 30 minute window
+SLICE_MIN_USDT = 100.0           # never cut a slice smaller than this
+
 # ---- operational -----------------------------------------------------------
 SCAN_INTERVAL_MINUTES = 5
 EVENT_TRACK_DAYS = 10     # stop tracking an event after this

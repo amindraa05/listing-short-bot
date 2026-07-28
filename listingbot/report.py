@@ -202,6 +202,21 @@ def render(d):
       </div>"""
 
     # ---- tables ------------------------------------------------------------
+    def notional_cell(r):
+        """Notional, and how it got there — sized down by the gate, or still filling."""
+        bits = [f'{r["notional_usdt"]:.2f}']
+        if not r["fill_complete"]:
+            bits.append(f'slice {r["slices_done"]}/{r["slices_planned"]}')
+        if r["sized_down"]:
+            bits.append(f'cut from {r["target_notional_usdt"]:.0f}')
+        if r["participation_pct"] is not None:
+            bits.append(f'{r["participation_pct"]:.2f}% of the hour')
+        head = bits[0]
+        tail = " &middot; ".join(bits[1:])
+        return (f'<td class="m dim">{head}'
+                + (f'<div class="dim small">{tail}</div>' if tail else "")
+                + "</td>")
+
     open_rows = "".join(
         f'<tr><td><span class="tag">{r["arm"]}</span></td>'
         f'<td class="sym">{html.escape(r["base"])}</td>'
@@ -212,7 +227,7 @@ def render(d):
         f'<td class="m {"neg" if (r["mae_pct"] or 0) > 7 else "dim"}">'
         f'+{r["mae_pct"] or 0:.1f}%</td>'
         f'<td class="m dim">+{r["mfe_pct"] or 0:.1f}%</td>'
-        f'<td class="m dim">{r["notional_usdt"]:.2f}</td></tr>'
+        + notional_cell(r) + "</tr>"
         for r in d["open"]) or '<tr><td colspan="9" class="dim">no open positions</td></tr>'
 
     def gap(r):
@@ -253,8 +268,14 @@ def render(d):
     ev_rows = "".join(event_row(r) for r in d["events"]) or \
         f'<tr><td colspan="{3+len(C.ARM_IDS)}" class="dim">no listings detected yet</td></tr>'
 
-    # ---- costs, pooled across arms ----------------------------------------
+    # ---- costs and execution, pooled across arms ---------------------------
     pool = _stats(d["closed"])
+    parts = [r["participation_pct"] for r in d["closed"] + d["open"]
+             if r["participation_pct"] is not None]
+    depths = [r["entry_book_depth_usdt"] for r in d["closed"] + d["open"]
+              if r["entry_book_depth_usdt"]]
+    med_part = sorted(parts)[len(parts) // 2] if parts else None
+    med_depth = sorted(depths)[len(depths) // 2] if depths else None
 
     lr = d["last_run"]
     stale_min = (store.now_ms() - lr["ts_ms"]) / 60000 if lr else 9999
@@ -402,6 +423,31 @@ a{{color:var(--accent)}}
       <div class="kpi"><div class="k">Running</div><div class="v">{days:.1f}d</div>
         <div class="s">{d["runs_24h"]} ticks in 24h</div></div>
     </div>
+  </section>
+
+  <section>
+    <h2>Execution discipline</h2>
+    <div class="kpis">
+      <div class="kpi"><div class="k">Participation cap</div>
+        <div class="v">{C.MAX_PARTICIPATION_PCT:.0f}%</div>
+        <div class="s">of the entry hour's traded volume</div></div>
+      <div class="kpi"><div class="k">Sized down</div>
+        <div class="v">{sum(1 for r in d["closed"] + d["open"] if r["sized_down"])}</div>
+        <div class="s">positions cut to fit</div></div>
+      <div class="kpi"><div class="k">Sliced</div>
+        <div class="v">{sum(1 for r in d["closed"] + d["open"] if (r["slices_planned"] or 1) > 1)}</div>
+        <div class="s">split across ticks</div></div>
+      <div class="kpi"><div class="k">Median participation</div>
+        <div class="v">{_num(med_part, "{:.2f}%")}</div>
+        <div class="s">measured, per position</div></div>
+      <div class="kpi"><div class="k">Median book depth</div>
+        <div class="v">{_num(med_depth, "${:,.0f}")}</div>
+        <div class="s">visible bid side at entry</div></div>
+    </div>
+    <p class="dim small">Liquidity on these contracts sits in the flow, not the book &mdash;
+    a contract can trade millions an hour with a few hundred dollars resting on the bid. The
+    gate therefore sizes against traded volume, and never skips an event: removing one would
+    bias the sample, while cutting the notional leaves the percentage return untouched.</p>
   </section>
 
   <section>
