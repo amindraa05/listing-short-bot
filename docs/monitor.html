@@ -102,7 +102,7 @@ a{color:var(--accent)}
 </head><body>
 
 <div class="wrap">
-  <div class="eyebrow">Paper trade monitor &middot; updated 2026-07-28 14:19 UTC</div>
+  <div class="eyebrow">Paper trade monitor &middot; updated 2026-07-28 14:25 UTC</div>
   <h1>Listing-short forward test &mdash; 4 arms, 3 venues</h1>
   <p class="lede">Five pre-registered out-of-sample replications put this effect on
   large-audience venues and not on small ones, at +3.46% per trade across 111 clean events
@@ -114,7 +114,64 @@ a{color:var(--accent)}
   <a href="https://amindraa05.github.io/listing-short-bot/">Research findings &rarr;</a></p>
 
   <section>
-    <h2>The two arms, each on its own book</h2>
+    <h2>The combined book &mdash; all venues, one account, one trade per token</h2>
+    <div class="kpis">
+      <div class="kpi"><div class="k">Equity</div>
+        <div class="v pos">1,000.00</div>
+        <div class="s">+0.00% from 1,000</div></div>
+      <div class="kpi"><div class="k">Trades taken</div>
+        <div class="v">0</div>
+        <div class="s">0 slot busy &middot;
+          0 duplicate token</div></div>
+      <div class="kpi"><div class="k">Max drawdown</div>
+        <div class="v neg">0.0%</div>
+        <div class="s">target 20% at p90</div></div>
+      <div class="kpi"><div class="k">Size per trade</div>
+        <div class="v">17%</div>
+        <div class="s">solved from the drawdown target</div></div>
+      <div class="kpi"><div class="k">Peak exposure</div>
+        <div class="v">17%</div>
+        <div class="s">1 position &times; 17%</div></div>
+      <div class="kpi"><div class="k">Venues feeding it</div>
+        <div class="v">3</div>
+        <div class="s">binance, coinbase, upbit</div></div>
+    </div>
+    <div class="split">
+      <div><div class="k">Size is solved, not guessed</div>
+        <div class="v" style="color:var(--accent)">17%</div>
+        <div class="s">for a 20% p90 drawdown</div>
+        <p>Size and drawdown are near-proportional here, so the dial has one setting and one
+        consequence. Measured on the clean historical sample at +3.46% per trade:</p>
+        <table class="refutab"><thead><tr><th>DD target</th><th>size</th><th>CAGR</th>
+        <th>peak exposure</th></tr></thead><tbody><tr><td class="m">10%</td><td class="m">9%</td><td class="m pos">+26.9%</td><td class="m dim">9%</td></tr><tr><td class="m">15%</td><td class="m">14%</td><td class="m pos">+45.5%</td><td class="m dim">14%</td></tr><tr class="hi"><td class="m">20%</td><td class="m">17%</td><td class="m pos">+58.9%</td><td class="m dim">17%</td></tr><tr><td class="m">25%</td><td class="m">23%</td><td class="m pos">+85.3%</td><td class="m dim">23%</td></tr><tr><td class="m">30%</td><td class="m">28%</td><td class="m pos">+111.2%</td><td class="m dim">28%</td></tr></tbody></table>
+        <p class="dim small">At the parameter-free +1.18% per trade the same 20% drawdown
+        buys only <strong>+12.8%</strong>. That gap is the cost of the entry hour not being
+        identifiable across venues.</p></div>
+      <div><div class="k">Why a cap of one</div>
+        <div class="v" style="color:var(--accent)">1</div>
+        <div class="s">position at a time</div>
+        <p>At a matched drawdown a cap of 2 earns about the same and needs roughly twice the
+        peak exposure &mdash; at a 20% target, +69.8% on 32% exposure against +58.9% on 17%.
+        Simultaneous shorts on new listings move together, so a second open position is
+        leverage rather than diversification, and leverage is cheaper to buy by making the
+        one position larger.</p>
+        <p><strong>Duplicates resolve to one trade.</strong> When several venues list the
+        same token the first to list wins and the token is then on a
+        7-day cooldown &mdash; the thesis is that the pump follows
+        the listing, so the earliest listing is the event. On history that bound 4 of 226
+        signals; the venues mostly list months apart.</p></div>
+    </div>
+    <p class="dim small">This book is computed from the arms' own record rather than
+    collected separately, which is arithmetically the same thing because every arm already
+    takes every eligible listing &mdash; and it leaves the per-arm measurement intact, which
+    a fifth self-collecting arm would have destroyed. The cap and the cooldown live here and
+    not in collection because Amendment 1 of the pre-registration established that a gate may
+    size down and must never skip an event: skipping removes sample points and biases the
+    test.</p>
+  </section>
+
+  <section>
+    <h2>The arms behind it, measured separately and uncapped</h2>
     <div class="arms">
     <div class="arm">
       <div class="arm-h"><span class="tag">t12</span>
@@ -216,63 +273,6 @@ a{color:var(--accent)}
   </section>
 
   <section>
-    <h2>The combined book &mdash; all venues, one account, one trade per token</h2>
-    <div class="kpis">
-      <div class="kpi"><div class="k">Equity</div>
-        <div class="v pos">1,000.00</div>
-        <div class="s">+0.00% from 1,000</div></div>
-      <div class="kpi"><div class="k">Trades taken</div>
-        <div class="v">0</div>
-        <div class="s">0 slot busy &middot;
-          0 duplicate token</div></div>
-      <div class="kpi"><div class="k">Max drawdown</div>
-        <div class="v neg">0.0%</div>
-        <div class="s">target 20% at p90</div></div>
-      <div class="kpi"><div class="k">Size per trade</div>
-        <div class="v">17%</div>
-        <div class="s">solved from the drawdown target</div></div>
-      <div class="kpi"><div class="k">Peak exposure</div>
-        <div class="v">17%</div>
-        <div class="s">1 position &times; 17%</div></div>
-      <div class="kpi"><div class="k">Venues feeding it</div>
-        <div class="v">3</div>
-        <div class="s">binance, coinbase, upbit</div></div>
-    </div>
-    <div class="split">
-      <div><div class="k">Size is solved, not guessed</div>
-        <div class="v" style="color:var(--accent)">17%</div>
-        <div class="s">for a 20% p90 drawdown</div>
-        <p>Size and drawdown are near-proportional here, so the dial has one setting and one
-        consequence. Measured on the clean historical sample at +3.46% per trade:</p>
-        <table class="refutab"><thead><tr><th>DD target</th><th>size</th><th>CAGR</th>
-        <th>peak exposure</th></tr></thead><tbody><tr><td class="m">10%</td><td class="m">9%</td><td class="m pos">+26.9%</td><td class="m dim">9%</td></tr><tr><td class="m">15%</td><td class="m">14%</td><td class="m pos">+45.5%</td><td class="m dim">14%</td></tr><tr class="hi"><td class="m">20%</td><td class="m">17%</td><td class="m pos">+58.9%</td><td class="m dim">17%</td></tr><tr><td class="m">25%</td><td class="m">23%</td><td class="m pos">+85.3%</td><td class="m dim">23%</td></tr><tr><td class="m">30%</td><td class="m">28%</td><td class="m pos">+111.2%</td><td class="m dim">28%</td></tr></tbody></table>
-        <p class="dim small">At the parameter-free +1.18% per trade the same 20% drawdown
-        buys only <strong>+12.8%</strong>. That gap is the cost of the entry hour not being
-        identifiable across venues.</p></div>
-      <div><div class="k">Why a cap of one</div>
-        <div class="v" style="color:var(--accent)">1</div>
-        <div class="s">position at a time</div>
-        <p>At a matched drawdown a cap of 2 earns about the same and needs roughly twice the
-        peak exposure &mdash; at a 20% target, +69.8% on 32% exposure against +58.9% on 17%.
-        Simultaneous shorts on new listings move together, so a second open position is
-        leverage rather than diversification, and leverage is cheaper to buy by making the
-        one position larger.</p>
-        <p><strong>Duplicates resolve to one trade.</strong> When several venues list the
-        same token the first to list wins and the token is then on a
-        7-day cooldown &mdash; the thesis is that the pump follows
-        the listing, so the earliest listing is the event. On history that bound 4 of 226
-        signals; the venues mostly list months apart.</p></div>
-    </div>
-    <p class="dim small">This book is computed from the arms' own record rather than
-    collected separately, which is arithmetically the same thing because every arm already
-    takes every eligible listing &mdash; and it leaves the per-arm measurement intact, which
-    a fifth self-collecting arm would have destroyed. The cap and the cooldown live here and
-    not in collection because Amendment 1 of the pre-registration established that a gate may
-    size down and must never skip an event: skipping removes sample points and biases the
-    test.</p>
-  </section>
-
-  <section>
     <h2>Anchor diagnostics &mdash; where this project keeps failing</h2>
     <div class="tablewrap"><table>
       <thead><tr><th>Signal venue</th><th>Listings seen</th><th>With an anchor</th>
@@ -286,7 +286,7 @@ a{color:var(--accent)}
   </section>
 
   <section>
-    <h2>Combined paper account</h2>
+    <h2>All arms summed, for reference</h2>
     <div class="kpis">
       <div class="kpi"><div class="k">Total equity</div>
         <div class="v pos">4,000.00</div>
@@ -303,7 +303,7 @@ a{color:var(--accent)}
         <div class="v">—</div>
         <div class="s">+ = credit to short</div></div>
       <div class="kpi"><div class="k">Running</div><div class="v">0.8d</div>
-        <div class="s">236 ticks in 24h</div></div>
+        <div class="s">238 ticks in 24h</div></div>
     </div>
   </section>
 
@@ -361,7 +361,7 @@ a{color:var(--accent)}
   </section>
 
   <section>
-    <h2>Frozen, shared by both arms</h2>
+    <h2>Frozen, shared by every arm</h2>
     <div class="rule"><dl>
       <dt>signal</dt><dd>a new pair starts trading on that arm's venue</dd>
       <dt>anchor</dt><dd>that venue's own first traded hour, never midnight</dd>
@@ -371,7 +371,7 @@ a{color:var(--accent)}
       <dt>take profit</dt><dd>15%</dd>
       <dt>stop loss</dt><dd>15%</dd>
       <dt>max hold</dt><dd>72h</dd>
-      <dt>size</dt><dd>20% of that arm's own equity, 1&times;</dd>
+      <dt>size</dt><dd>17% &mdash; solved from a 20% p90 drawdown target, not chosen</dd>
       <dt>stop signal</dt><dd>win rate &le;40% after
         15 closed trades, per arm</dd>
       <dt>bar</dt><dd>t 2.49 = 2.0 + 0.35&thinsp;&times;&thinsp;ln(2), for two
