@@ -93,13 +93,15 @@ a{color:var(--accent)}
 </head><body>
 
 <div class="wrap">
-  <div class="eyebrow">Paper trade monitor &middot; updated 2026-07-28 07:53 UTC</div>
-  <h1>Listing-short forward test &mdash; two arms</h1>
-  <p class="lede">Live paper trading of a rule whose backtest <strong>did not</strong>
-  settle its own central question: whether the entry belongs at T+12h or T+18h. Both arms
-  were <a href="https://github.com/amindraa05/listing-short-bot/blob/main/PREREG_ARMS.md">declared in advance</a> and neither may be dropped. Fills
-  walk the real Gate order book; fees and funding are the venue's own. No real orders are
-  placed and no API key exists.
+  <div class="eyebrow">Paper trade monitor &middot; updated 2026-07-28 13:52 UTC</div>
+  <h1>Listing-short forward test &mdash; 4 arms, 3 venues</h1>
+  <p class="lede">Five pre-registered out-of-sample replications put this effect on
+  large-audience venues and not on small ones, at +3.46% per trade across 111 clean events
+  &mdash; <strong>sitting on its significance bar, not past it</strong>. Each arm listens to
+  one venue and trades the same Gate USDT perpetual, so the venue supplies only the listing
+  timestamp. Every arm was <a href="https://github.com/amindraa05/listing-short-bot/blob/main/PREREG_VENUES.md">declared in advance</a> and none may be
+  dropped. Fills walk the real order book; fees and funding are the venue's own. No real
+  orders are placed and no API key exists.
   <a href="https://amindraa05.github.io/listing-short-bot/">Research findings &rarr;</a></p>
 
   <section>
@@ -107,7 +109,8 @@ a{color:var(--accent)}
     <div class="arms">
     <div class="arm">
       <div class="arm-h"><span class="tag">t12</span>
-        <strong>T+12h</strong>
+        <strong>Binance T+12h</strong>
+        <span class="chip mid">binance</span>
         <span class="dim small">the operator&#x27;s hypothesis, never swept</span></div>
       <div class="arm-eq pos">1,000.00
         <span class="dim">+0.00% &middot; own book</span></div>
@@ -121,7 +124,7 @@ a{color:var(--accent)}
         <dt>median</dt><dd>—
           <span class="dim">bt +14.77%</span></dd>
         <dt>t</dt><dd>—
-          <span class="dim">bar 2.24</span></dd>
+          <span class="dim">bar 2.49</span></dd>
         <dt>P&amp;L</dt><dd>— USDT</dd>
       </dl>
       <div class="note mid">15 more closed trades before the stop check means anything.</div>
@@ -129,8 +132,9 @@ a{color:var(--accent)}
     </div>
     <div class="arm">
       <div class="arm-h"><span class="tag">t18</span>
-        <strong>T+18h</strong>
-        <span class="dim small">middle of the T+14-24h plateau; the sweep peak was T+22h</span></div>
+        <strong>Binance T+18h</strong>
+        <span class="chip mid">binance</span>
+        <span class="dim small">a swept plateau that failed to replicate; kept because the freeze forbids dropping an arm</span></div>
       <div class="arm-eq pos">1,000.00
         <span class="dim">+0.00% &middot; own book</span></div>
       <dl>
@@ -143,7 +147,53 @@ a{color:var(--accent)}
         <dt>median</dt><dd>—
           <span class="dim">bt +14.77%</span></dd>
         <dt>t</dt><dd>—
-          <span class="dim">bar 2.24</span></dd>
+          <span class="dim">bar 2.49</span></dd>
+        <dt>P&amp;L</dt><dd>— USDT</dd>
+      </dl>
+      <div class="note mid">15 more closed trades before the stop check means anything.</div>
+      <div class="bar"><span style="width:0%"></span></div>
+    </div>
+    <div class="arm">
+      <div class="arm-h"><span class="tag">cb12</span>
+        <strong>Coinbase T+12h</strong>
+        <span class="chip mid">coinbase</span>
+        <span class="dim small">clean out-of-sample: +2.76% on 48 tokens</span></div>
+      <div class="arm-eq pos">1,000.00
+        <span class="dim">+0.00% &middot; own book</span></div>
+      <dl>
+        <dt>closed</dt><dd>0</dd>
+        <dt>open</dt><dd>0</dd>
+        <dt>win rate</dt><dd>—
+          <span class="dim">bt 66.7%</span></dd>
+        <dt>mean</dt><dd>—
+          <span class="dim">bt +2.76%</span></dd>
+        <dt>median</dt><dd>—
+          <span class="dim">bt +4.38%</span></dd>
+        <dt>t</dt><dd>—
+          <span class="dim">bar 2.49</span></dd>
+        <dt>P&amp;L</dt><dd>— USDT</dd>
+      </dl>
+      <div class="note mid">15 more closed trades before the stop check means anything.</div>
+      <div class="bar"><span style="width:0%"></span></div>
+    </div>
+    <div class="arm">
+      <div class="arm-h"><span class="tag">up12</span>
+        <strong>Upbit T+12h</strong>
+        <span class="chip mid">upbit</span>
+        <span class="dim small">clean out-of-sample: +3.99% on 63 tokens, placebo-controlled</span></div>
+      <div class="arm-eq pos">1,000.00
+        <span class="dim">+0.00% &middot; own book</span></div>
+      <dl>
+        <dt>closed</dt><dd>0</dd>
+        <dt>open</dt><dd>0</dd>
+        <dt>win rate</dt><dd>—
+          <span class="dim">bt 65.1%</span></dd>
+        <dt>mean</dt><dd>—
+          <span class="dim">bt +3.99%</span></dd>
+        <dt>median</dt><dd>—
+          <span class="dim">bt +11.25%</span></dd>
+        <dt>t</dt><dd>—
+          <span class="dim">bar 2.49</span></dd>
         <dt>P&amp;L</dt><dd>— USDT</dd>
       </dl>
       <div class="note mid">15 more closed trades before the stop check means anything.</div>
@@ -157,11 +207,51 @@ a{color:var(--accent)}
   </section>
 
   <section>
+    <h2>One account at a cap of 1 &mdash; the deployment overlay</h2>
+    <div class="kpis">
+      <div class="kpi"><div class="k">Trades taken</div>
+        <div class="v">0</div>
+        <div class="s">0 skipped, slot busy &middot;
+          0 on cooldown</div></div>
+      <div class="kpi"><div class="k">Equity</div>
+        <div class="v pos">1,000.00</div>
+        <div class="s">+0.00% from 1,000</div></div>
+      <div class="kpi"><div class="k">Max drawdown</div>
+        <div class="v neg">0.0%</div>
+        <div class="s">on this trade order</div></div>
+      <div class="kpi"><div class="k">Peak exposure</div>
+        <div class="v">20%</div>
+        <div class="s">1 position &times; 20%</div></div>
+    </div>
+    <p class="dim small">The cap is applied <strong>here</strong> and not when collecting
+    trades. Amendment 1 of the pre-registration established that a gate may size down and
+    must never skip an event, because skipping removes sample points and biases the test.
+    So every arm above takes every eligible listing, and this panel shows what a single
+    account running at most 1 position at a time would have earned from the same
+    record. On the clean historical samples a cap of 1 returned +64.4% CAGR at an 11.2%
+    drawdown against +59.9% at 19.0% for a cap of 2 &mdash; simultaneous shorts on new
+    listings are correlated, so a second open position is leverage, not diversification.</p>
+  </section>
+
+  <section>
+    <h2>Anchor diagnostics &mdash; where this project keeps failing</h2>
+    <div class="tablewrap"><table>
+      <thead><tr><th>Signal venue</th><th>Listings seen</th><th>With an anchor</th>
+      <th>Median first traded hour, UTC</th></tr></thead>
+      <tbody><tr><td class="sym">binance</td><td class="m dim">0</td><td class="m dim">0</td><td class="m dim">&mdash;</td></tr><tr><td class="sym">coinbase</td><td class="m dim">0</td><td class="m dim">0</td><td class="m dim">&mdash;</td></tr><tr><td class="sym">upbit</td><td class="m dim">0</td><td class="m dim">0</td><td class="m dim">&mdash;</td></tr></tbody></table></div>
+    <p class="dim small">Three separate midnight-anchor bugs have been found in this
+    project, the most recent inside the Upbit study where it manufactured a +5.91% result
+    at t&nbsp;5.76 that had to be withdrawn. Coinbase lists at a median 17:00 UTC and Upbit
+    at a median 7h past midnight, so a median clustered at 00:00 here would mean the bug
+    has returned.</p>
+  </section>
+
+  <section>
     <h2>Combined paper account</h2>
     <div class="kpis">
       <div class="kpi"><div class="k">Total equity</div>
-        <div class="v pos">2,000.00</div>
-        <div class="s">+0.00% from 2,000</div></div>
+        <div class="v pos">4,000.00</div>
+        <div class="s">+0.00% from 4,000</div></div>
       <div class="kpi"><div class="k">Closed</div><div class="v">0</div>
         <div class="s">both arms</div></div>
       <div class="kpi"><div class="k">Entry slip</div>
@@ -173,8 +263,8 @@ a{color:var(--accent)}
       <div class="kpi"><div class="k">Funding</div>
         <div class="v">—</div>
         <div class="s">+ = credit to short</div></div>
-      <div class="kpi"><div class="k">Running</div><div class="v">0.6d</div>
-        <div class="s">162 ticks in 24h</div></div>
+      <div class="kpi"><div class="k">Running</div><div class="v">0.8d</div>
+        <div class="s">230 ticks in 24h</div></div>
     </div>
   </section>
 
@@ -223,8 +313,8 @@ a{color:var(--accent)}
   <section>
     <h2>Listings seen, and what each arm decided</h2>
     <div class="tablewrap"><table>
-      <thead><tr><th>Detected</th><th>Token</th><th>Perp gap</th><th>t12</th><th>t18</th></tr></thead>
-      <tbody><tr><td colspan="5" class="dim">no listings detected yet</td></tr></tbody></table></div>
+      <thead><tr><th>Detected</th><th>Token</th><th>Perp gap</th><th>t12</th><th>t18</th><th>cb12</th><th>up12</th></tr></thead>
+      <tbody><tr><td colspan="7" class="dim">no listings detected yet</td></tr></tbody></table></div>
     <p class="dim small">A perp arriving between the two entry hours is tradeable by the
     later arm only. That is a feasibility rule, not a filter to tune &mdash; and getting
     it wrong accounted for half the difference between the research page's first headline
@@ -234,7 +324,9 @@ a{color:var(--accent)}
   <section>
     <h2>Frozen, shared by both arms</h2>
     <div class="rule"><dl>
-      <dt>signal</dt><dd>new USDT pair starts trading on Binance spot</dd>
+      <dt>signal</dt><dd>a new pair starts trading on that arm's venue</dd>
+      <dt>anchor</dt><dd>that venue's own first traded hour, never midnight</dd>
+      <dt>execution</dt><dd>Gate USDT perpetual, every arm</dd>
       <dt>filter</dt><dd>a Gate perpetual must exist by that arm's entry hour</dd>
       <dt>direction</dt><dd>short, never long</dd>
       <dt>take profit</dt><dd>15%</dd>
@@ -243,14 +335,14 @@ a{color:var(--accent)}
       <dt>size</dt><dd>20% of that arm's own equity, 1&times;</dd>
       <dt>stop signal</dt><dd>win rate &le;40% after
         15 closed trades, per arm</dd>
-      <dt>bar</dt><dd>t 2.24 = 2.0 + 0.35&thinsp;&times;&thinsp;ln(2), for two
+      <dt>bar</dt><dd>t 2.49 = 2.0 + 0.35&thinsp;&times;&thinsp;ln(2), for two
         pre-declared configurations</dd>
     </dl></div>
   </section>
 
   <footer>
     <span>health <span class="chip ok">ok</span>
-      last tick 3 min ago</span>
+      last tick 0 min ago</span>
     <span>paper only &mdash; no orders, no keys</span>
     
   </footer>
