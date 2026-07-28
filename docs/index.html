@@ -2,9 +2,9 @@
 <html lang="en"><head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<meta name="description" content="Shorting the new-listing pump: four pre-registered
-out-of-sample replications. The general claim is refuted on small venues; two large-audience
-venues agree at +2.7% and still clear no significance bar.">
+<meta name="description" content="Shorting the new-listing pump: five pre-registered
+out-of-sample replications. Refuted on small exchanges; on Coinbase and Upbit the pooled 111
+clean events run +3.46% at t 3.03 — sitting on its significance bar, not past it.">
 <title>Listing-Short Research — Honest Findings</title>
 <style>
 :root {
@@ -148,6 +148,7 @@ footer { border-top:1px solid var(--line); padding-top:16px; font-family:var(--m
 .refutab td { padding:5px 10px 5px 0; border-bottom:1px solid var(--line);
   white-space:nowrap; }
 .refutab tr:last-child td { border-bottom:0; }
+.refutab tr.hi td { background:var(--accent-soft); }
 @media (prefers-reduced-motion:reduce) { * { transition:none !important; } }
 </style>
 </head><body>
@@ -157,45 +158,57 @@ footer { border-top:1px solid var(--line); padding-top:16px; font-family:var(--m
   <div class="eyebrow">Research findings &middot; 2024-08-27 to 2026-07-18
     &middot; untuned configuration</div>
   <h1>Shorting the Binance listing pump</h1>
-  <p class="lede">The one hypothesis of roughly three thousand tested that survived its
-  own backtest &mdash; and then failed the first clean out-of-sample test of it — reported here at the parameters that were <em>not</em> chosen by looking at
+  <p class="lede">The one hypothesis of roughly three thousand tested that survived its own
+  backtest &mdash; refuted out-of-sample on small exchanges, and still standing, at the edge of
+  significance, on large ones — reported here at the parameters that were <em>not</em> chosen by looking at
   the data. 115 listings over 1.89 years, priced on the perpetual
   actually shorted, with fees, spread, gap-through fills and the liquidation rule applied.</p>
 
   <div class="refuted">
-    <h3>Out-of-sample replication, 2026-07-28: general claim refuted, a narrower one alive</h3>
-    <p>The rule below was run unchanged against <strong>four independent out-of-sample
-    datasets</strong>, each pre-registered in git before the run. It fails on small venues and
-    holds on large ones.</p>
+    <h3>Five pre-registered out-of-sample replications, 2026-07-28</h3>
+    <p>The rule below was run unchanged against five independent datasets, each pre-registered
+    in git <em>before</em> the run. It <strong>loses on small venues and holds on large
+    ones</strong>.</p>
     <table class="refutab"><thead><tr><th>sample</th><th>venue tier</th><th>n</th>
     <th>mean</th><th>win</th><th>t</th></tr></thead><tbody>
-    <tr><td>this study, Binance &mdash; in-sample</td><td>large</td><td>115</td>
+    <tr><td>this study, Binance &mdash; in-sample, not evidence</td><td>large</td><td>115</td>
       <td class="pos">+2.71%</td><td>62.6%</td><td>+1.99</td></tr>
-    <tr><td><strong>Coinbase, clean tokens</strong></td><td>large</td><td>48</td>
-      <td class="pos"><strong>+2.76%</strong></td><td>66.7%</td><td>+1.64</td></tr>
+    <tr><td>Coinbase, clean tokens</td><td>large</td><td>48</td>
+      <td class="pos">+2.76%</td><td>66.7%</td><td>+1.64</td></tr>
+    <tr><td>Upbit, clean tokens</td><td>large</td><td>63</td>
+      <td class="pos">+3.99%</td><td>65.1%</td><td>+2.55</td></tr>
+    <tr class="hi"><td><strong>pooled large-venue, clean</strong></td><td><strong>large</strong></td>
+      <td><strong>111</strong></td><td class="pos"><strong>+3.46%</strong></td>
+      <td><strong>65.8%</strong></td><td><strong>+3.03</strong></td></tr>
     <tr><td>Bybit, fresh tokens</td><td>small</td><td>39</td>
       <td class="neg">&minus;3.72%</td><td>38.5%</td><td>&minus;1.66</td></tr>
     <tr><td>Bybit+OKX+KuCoin+Gate pool</td><td>small</td><td>92</td>
       <td class="neg">&minus;2.65%</td><td>43.5%</td><td>&minus;1.80</td></tr>
     </tbody></table>
     <p><strong>The general claim is refuted.</strong> On 92 tokens never listed on Binance, at
-    four smaller venues, the rule loses: the stop fires more often than the target, the median
-    trade runs 22% against the short, and 16% would have liquidated a 1&times; position. Those
-    tokens pump and keep going.</p>
-    <p><strong>What survives is narrower and better specified.</strong> Two independent
-    large-audience venues land at <strong>+2.71%</strong> and <strong>+2.76%</strong>. The
-    difference between large and small venues is +5.41pp at t&nbsp;2.42. A placebo control
-    rules out the obvious alternative: re-running the identical rule on the identical Coinbase
-    tokens at arbitrary later dates pays &minus;0.47%, and shorting BTC over the same windows
-    <em>loses</em> money, so this is not market beta.</p>
-    <p><strong>It still clears no bar.</strong> t&nbsp;1.64 on the clean Coinbase sample against
-    a bar of 2.63, and the large-versus-small split was chosen after seeing three results, which
-    is its own form of searching. Two mechanisms proposed along the way were withdrawn on the
-    evidence: the &ldquo;no perpetual exists yet&rdquo; cohort story, and the entry-hour plateau
-    that justified a second arm &mdash; T+18h beat T+12h by 1.82pp on Binance and loses to it by
-    3.50pp on Coinbase.</p>
+    four smaller venues, the stop fires more often than the target, the median trade runs 22%
+    against the short, and 16% would have liquidated a 1&times; position. Those tokens pump and
+    keep going.</p>
+    <p><strong>A narrower claim survives, and it passes a placebo control.</strong> Large minus
+    small is +6.11pp at t&nbsp;3.27. On Upbit, re-running the identical rule on the identical
+    tokens at arbitrary later dates pays &minus;0.95%, so the listing hour itself is worth
+    <strong>+4.94pp at t&nbsp;2.93</strong> &mdash; not market drift. Trimming the extremes
+    strengthens it, both time halves are positive, and all three price sources agree.</p>
+    <p><strong>It sits ON its significance bar, not past it.</strong> t&nbsp;3.03 clears a bar of
+    2.73 if you charge for eight configurations, and fails a bar of 3.05 if you charge for
+    twenty. Which is correct depends on a count that cannot be pinned down, and saying so is
+    part of the result.</p>
+    <p><strong>Three claims made along the way have been withdrawn on the evidence:</strong> the
+    &ldquo;no perpetual exists yet&rdquo; cohort story; the entry-hour plateau that justified a
+    second arm (T+18h beat T+12h by 1.82pp here and is flat on both large venues); and an Upbit
+    figure of +5.91% at t&nbsp;5.76 that turned out to be a midnight-anchor artefact &mdash; the
+    third such anchor bug in this project. The frozen T+12h, which was never chosen by looking at
+    outcomes, is the hour that replicates.</p>
     <p>Everything below is the record of what the Binance sample showed, not a claim about the
-    world. Live paper trading on Binance listings continues; it is the only clean test left.
+    world. Live paper trading on Binance listings continues and is the only evidence that cannot
+    be contaminated.
+    <a href="https://github.com/amindraa05/listing-short-bot/blob/main/PREREG_KOREA.md">Upbit
+    &rarr;</a> &middot;
     <a href="https://github.com/amindraa05/listing-short-bot/blob/main/PREREG_COINBASE.md">Coinbase
     &rarr;</a> &middot;
     <a href="https://github.com/amindraa05/listing-short-bot/blob/main/PREREG_POOL.md">pool
@@ -237,6 +250,54 @@ footer { border-top:1px solid var(--line); padding-top:16px; font-family:var(--m
         <li>DEV subset alone: t 1.14</li>
       </ul></div>
   </div>
+
+  <section>
+    <h2>What the out-of-sample sample is worth</h2>
+    <p>The figures further down this page are in-sample &mdash; the rule was built on that data.
+    These are not. They are the 111 clean large-venue events, Coinbase and Upbit combined,
+    traded chronologically at the frozen T+12h.</p>
+    <div class="kpis">
+      <div class="kpi"><div class="k">Events</div><div class="v">111</div>
+        <div class="s">59 per year over 1.9 years</div></div>
+      <div class="kpi"><div class="k">Mean / trade</div>
+        <div class="v pos">+3.46%</div>
+        <div class="s">win 65.8% &middot; t 3.03</div></div>
+      <div class="kpi"><div class="k">CAGR at 30%</div>
+        <div class="v pos">+76%</div>
+        <div class="s">$2,928 from $1,000</div></div>
+      <div class="kpi"><div class="k">CAGR at 20%</div>
+        <div class="v pos">+47%</div>
+        <div class="s">what the live bot runs</div></div>
+      <div class="kpi"><div class="k">Drawdown p90</div>
+        <div class="v neg">24.3%</div>
+        <div class="s">at 30% &middot; 16.8% at 20%</div></div>
+      <div class="kpi"><div class="k">CAGR range</div>
+        <div class="v">+35&hairsp;&ndash;&hairsp;+127%</div>
+        <div class="s">bootstrapped p10 to p90, at 30%</div></div>
+    </div>
+    <div class="split">
+      <div><div class="k">If the entry hour is arbitrary</div>
+        <div class="v" style="color:var(--warn)">+18%</div>
+        <div class="s">CAGR at 30% &middot; p90 drawdown 35.4%</div>
+        <p>The entry-hour surfaces on the two large venues <strong>anti-correlate at
+        r&nbsp;=&nbsp;&minus;0.685</strong>: Binance peaks at T+22h, Coinbase at T+12h. The hour
+        is not identifiable from this data, so the honest figure is the unweighted mean across
+        T+6h&ndash;T+30h &mdash; +1.18% per trade, which has no parameter fitted
+        to it. At that level 20% of bootstrap resamples lose
+        money outright.</p></div>
+      <div><div class="k">Peak concurrent exposure</div>
+        <div class="v neg">150%</div>
+        <div class="s">5 positions at once &times; 30% each</div>
+        <p>The two venues list independently, so positions overlap: median 1 open at a time, p90
+        3, peak 5. A fixed-percentage sizing rule hides
+        that. The CAGR figures assume sequential compounding and therefore understate both the
+        return and the risk of the overlapping reality &mdash; an account running both venues
+        needs a cap on concurrent positions or a smaller per-trade size.</p></div>
+    </div>
+    <p class="dim small">Per venue for reference: Coinbase 48 events, CAGR +24.7%, max drawdown
+    22.3%. Upbit 63 events, CAGR +45.2%, max drawdown 12.9%. Every figure on this page is
+    historical; none of it is the forward test.</p>
+  </section>
 
   <section>
     <h2>Where the $3,911 went</h2>
