@@ -5,9 +5,11 @@
 import argparse
 import csv
 import json
+import hashlib
 import logging
 import math
 import os
+import re
 import sys
 import time
 
@@ -193,6 +195,21 @@ def cmd_export(args):
     return 0
 
 
+# Lines that change on every render regardless of what happened. Stripping them is what
+# lets the fingerprint mean "the page says something different" rather than "time passed".
+_VOLATILE = re.compile(
+    r"updated \d{4}-\d{2}-\d{2} \d{2}:\d{2} UTC"
+    r"|last tick \d+ min ago"
+    r"|>\d+(?:\.\d+)?d<"                      # running-for, in days
+    r"|\d+ ticks in 24h"
+    r"|\d+(?:\.\d+)?h</td>",                  # position ages
+    re.I)
+
+
+def _page_fingerprint(html):
+    return hashlib.sha256(_VOLATILE.sub("", html).encode("utf-8")).hexdigest()[:32]
+
+
 def cmd_publish(args):
     """Regenerate the monitor page and push it to the repo's docs/ directory.
 
@@ -209,22 +226,26 @@ def cmd_publish(args):
         return 1
     # A commit per tick would bury the repository in 288 noise commits a day, because
     # the page carries a "last updated" stamp that changes even when nothing happened.
-    # So publish when the SUBSTANCE changes, plus a floor so the stamp never looks dead.
-    fp = "|".join(str(x) for x in cx.execute(
-        "SELECT (SELECT COUNT(*) FROM events), (SELECT COUNT(*) FROM positions), "
-        "(SELECT COUNT(*) FROM positions WHERE status='closed'), "
-        "(SELECT ROUND(COALESCE(SUM(pnl_usdt),0),4) FROM positions)").fetchone())
+    # So publish only when the SUBSTANCE changes, plus a floor so the stamp never looks
+    # abandoned.
+    #
+    # The fingerprint is the rendered page with the volatile lines stripped out, NOT a
+    # summary of the database. A database summary misses a change to the page itself:
+    # the first two-arm build was skipped by exactly that bug, leaving a stale
+    # single-arm page published while the host was already running both arms.
+    docs = os.path.join(repo, "docs")
+    os.makedirs(docs, exist_ok=True)
+    dest = os.path.join(docs, "monitor.html")
+    html = report.render(report.gather(cx))
+    fp = _page_fingerprint(html)
     prev = cx.execute("SELECT value FROM meta WHERE key='publish_fp'").fetchone()
     last = cx.execute("SELECT value FROM meta WHERE key='publish_ms'").fetchone()
     age_h = (store.now_ms() - int(last["value"])) / 3_600_000 if last else 1e9
     if not args.force and prev and prev["value"] == fp and age_h < args.max_age_hours:
-        log.info("state unchanged and last publish %.1fh ago — skipping", age_h)
+        log.info("page unchanged and last publish %.1fh ago — skipping", age_h)
         return 0
-
-    docs = os.path.join(repo, "docs")
-    os.makedirs(docs, exist_ok=True)
-    dest = os.path.join(docs, "monitor.html")
-    report.write(cx, dest)
+    with open(dest, "w", encoding="utf-8") as f:
+        f.write(html)
 
     def git(*a, check=True):
         return subprocess.run(["git", "-C", repo, *a], capture_output=True,
