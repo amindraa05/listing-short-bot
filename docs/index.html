@@ -2,9 +2,9 @@
 <html lang="en"><head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<meta name="description" content="Shorting the new-listing pump: the one hypothesis of ~3000
-that survived its own backtest, and the 92-event out-of-sample replication across four
-exchanges that refuted it.">
+<meta name="description" content="Shorting the new-listing pump: four pre-registered
+out-of-sample replications. The general claim is refuted on small venues; two large-audience
+venues agree at +2.7% and still clear no significance bar.">
 <title>Listing-Short Research — Honest Findings</title>
 <style>
 :root {
@@ -134,10 +134,10 @@ footer { border-top:1px solid var(--line); padding-top:16px; font-family:var(--m
   margin-bottom:10px; }
 .split p { margin:0; font-size:0.86rem; color:var(--muted); }
 @media (max-width:680px) { .split { grid-template-columns:1fr; } }
-.refuted { border:1px solid var(--bad); border-left-width:4px; border-radius:3px;
+.refuted { border:1px solid var(--warn); border-left-width:4px; border-radius:3px;
   background:var(--panel); padding:18px 22px; margin:0 0 24px; }
 .refuted h3 { margin:0 0 10px; font-family:var(--mono); font-size:0.78rem;
-  letter-spacing:0.1em; text-transform:uppercase; color:var(--bad); font-weight:700; }
+  letter-spacing:0.1em; text-transform:uppercase; color:var(--warn); font-weight:700; }
 .refuted p { margin:0 0 10px; max-width:76ch; }
 .refuted p:last-child { margin-bottom:0; }
 .refutab { width:100%; border-collapse:collapse; font-family:var(--mono);
@@ -163,38 +163,45 @@ footer { border-top:1px solid var(--line); padding-top:16px; font-family:var(--m
   actually shorted, with fees, spread, gap-through fills and the liquidation rule applied.</p>
 
   <div class="refuted">
-    <h3>Out-of-sample replication, 2026-07-28: refuted</h3>
-    <p>The rule below was run unchanged against <strong>92 new spot listings across Bybit,
-    OKX, KuCoin and Gate</strong> &mdash; tokens never listed on Binance at all, so never seen
-    by this study. Both entry arms were pre-registered before the run.</p>
-    <table class="refutab"><thead><tr><th>sample</th><th>n</th><th>mean</th><th>median</th>
-    <th>win</th><th>t</th></tr></thead><tbody>
-    <tr><td>this study, Binance listings</td><td>115</td><td class="pos">+2.71%</td>
-      <td class="pos">+14.77%</td><td>62.6%</td><td>+1.99</td></tr>
-    <tr><td>pooled fresh, T+12h</td><td>92</td><td class="neg">&minus;2.65%</td>
-      <td class="neg">&minus;15.32%</td><td>43.5%</td><td>&minus;1.80</td></tr>
-    <tr><td>pooled fresh, T+18h</td><td>93</td><td class="neg">&minus;3.27%</td>
-      <td class="neg">&minus;15.32%</td><td>40.9%</td><td>&minus;2.24</td></tr>
+    <h3>Out-of-sample replication, 2026-07-28: general claim refuted, a narrower one alive</h3>
+    <p>The rule below was run unchanged against <strong>four independent out-of-sample
+    datasets</strong>, each pre-registered in git before the run. It fails on small venues and
+    holds on large ones.</p>
+    <table class="refutab"><thead><tr><th>sample</th><th>venue tier</th><th>n</th>
+    <th>mean</th><th>win</th><th>t</th></tr></thead><tbody>
+    <tr><td>this study, Binance &mdash; in-sample</td><td>large</td><td>115</td>
+      <td class="pos">+2.71%</td><td>62.6%</td><td>+1.99</td></tr>
+    <tr><td><strong>Coinbase, clean tokens</strong></td><td>large</td><td>48</td>
+      <td class="pos"><strong>+2.76%</strong></td><td>66.7%</td><td>+1.64</td></tr>
+    <tr><td>Bybit, fresh tokens</td><td>small</td><td>39</td>
+      <td class="neg">&minus;3.72%</td><td>38.5%</td><td>&minus;1.66</td></tr>
+    <tr><td>Bybit+OKX+KuCoin+Gate pool</td><td>small</td><td>92</td>
+      <td class="neg">&minus;2.65%</td><td>43.5%</td><td>&minus;1.80</td></tr>
     </tbody></table>
-    <p><strong>The mechanism inverted rather than weakened.</strong> In this study the take
-    profit fired more often than the stop, 61 to 39. In the pool the stop fires more often,
-    49 to 33, the median trade runs <strong>22% against</strong> a short before resolving, and
-    16% of events would have liquidated a 1&times; position outright. These tokens pump and
-    keep going. If the true mean were the +1.99% this study measured on spot-priced events, a
-    pooled result this bad has a <strong>0.08%</strong> chance of occurring.</p>
-    <p>Every robustness split agrees: both time halves negative, all four pricing venues
-    negative, single-venue tokens worst at &minus;4.99%.</p>
-    <p>What survives is only the narrower claim that <strong>Binance</strong> listings behave
-    differently &mdash; and the two samples do differ by 5.36pp at t 2.67, so that is not an
-    empty claim. But it now has <strong>no clean supporting evidence at all</strong>, and the
-    competing explanation is simply that the result below was the artefact: it never cleared
-    its own bar of 3.55, had no clean holdout, and four measurement bugs were found in it
-    which all happened to flatter it. Everything below stands as the record of what the
-    Binance sample showed, not as a claim about the world.
-    <a href="https://github.com/amindraa05/listing-short-bot/blob/main/PREREG_POOL.md">Pooled
-    pre-registration and result &rarr;</a> &middot;
-    <a href="https://github.com/amindraa05/listing-short-bot/blob/main/PREREG_BYBIT.md">the
-    first Bybit run &rarr;</a></p>
+    <p><strong>The general claim is refuted.</strong> On 92 tokens never listed on Binance, at
+    four smaller venues, the rule loses: the stop fires more often than the target, the median
+    trade runs 22% against the short, and 16% would have liquidated a 1&times; position. Those
+    tokens pump and keep going.</p>
+    <p><strong>What survives is narrower and better specified.</strong> Two independent
+    large-audience venues land at <strong>+2.71%</strong> and <strong>+2.76%</strong>. The
+    difference between large and small venues is +5.41pp at t&nbsp;2.42. A placebo control
+    rules out the obvious alternative: re-running the identical rule on the identical Coinbase
+    tokens at arbitrary later dates pays &minus;0.47%, and shorting BTC over the same windows
+    <em>loses</em> money, so this is not market beta.</p>
+    <p><strong>It still clears no bar.</strong> t&nbsp;1.64 on the clean Coinbase sample against
+    a bar of 2.63, and the large-versus-small split was chosen after seeing three results, which
+    is its own form of searching. Two mechanisms proposed along the way were withdrawn on the
+    evidence: the &ldquo;no perpetual exists yet&rdquo; cohort story, and the entry-hour plateau
+    that justified a second arm &mdash; T+18h beat T+12h by 1.82pp on Binance and loses to it by
+    3.50pp on Coinbase.</p>
+    <p>Everything below is the record of what the Binance sample showed, not a claim about the
+    world. Live paper trading on Binance listings continues; it is the only clean test left.
+    <a href="https://github.com/amindraa05/listing-short-bot/blob/main/PREREG_COINBASE.md">Coinbase
+    &rarr;</a> &middot;
+    <a href="https://github.com/amindraa05/listing-short-bot/blob/main/PREREG_POOL.md">pool
+    &rarr;</a> &middot;
+    <a href="https://github.com/amindraa05/listing-short-bot/blob/main/PREREG_BYBIT.md">Bybit
+    &rarr;</a></p>
   </div>
 
   <p class="livelink"><a href="monitor.html">Live paper-trade monitor &rarr;</a>
