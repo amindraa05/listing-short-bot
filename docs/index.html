@@ -123,6 +123,17 @@ footer { border-top:1px solid var(--line); padding-top:16px; font-family:var(--m
 .livelink a { font-family:var(--mono); font-size:0.86rem; font-weight:600;
   letter-spacing:0.02em; white-space:nowrap; }
 .livelink span { color:var(--muted); font-size:0.86rem; }
+.split { display:grid; grid-template-columns:1fr 1fr; gap:1px; background:var(--line);
+  border:1px solid var(--line); border-radius:3px; overflow:hidden; margin-top:18px; }
+.split > div { background:var(--panel); padding:16px 18px; }
+.split .k { font-family:var(--mono); font-size:0.66rem; letter-spacing:0.1em;
+  text-transform:uppercase; color:var(--muted); }
+.split .v { font-family:var(--mono); font-size:1.55rem; letter-spacing:-0.02em;
+  margin-top:3px; color:var(--bad); font-variant-numeric:tabular-nums; }
+.split .s { font-family:var(--mono); font-size:0.7rem; color:var(--muted);
+  margin-bottom:10px; }
+.split p { margin:0; font-size:0.86rem; color:var(--muted); }
+@media (max-width:680px) { .split { grid-template-columns:1fr; } }
 @media (prefers-reduced-motion:reduce) { * { transition:none !important; } }
 </style>
 </head><body>
@@ -170,6 +181,40 @@ footer { border-top:1px solid var(--line); padding-top:16px; font-family:var(--m
         <li>DEV subset alone: t 1.14</li>
       </ul></div>
   </div>
+
+  <section>
+    <h2>Where the $3,911 went</h2>
+    <p>The two headlines differ by more than the per-trade means suggest, because equity
+    compounds: a mean cut by 1.8&times; over 19 fewer trades lands 2.7&times; lower. Running the
+    same simulator three ways splits the fall into two named parts, almost exactly half
+    each. Nothing else changes between the rows &mdash; same take profit, stop, hold,
+    spread, fees, sizing, anchors and price series.</p>
+    <div class="tablewrap"><table>
+      <thead><tr><th></th><th>Configuration</th><th>n</th><th>Mean</th><th>Win</th>
+      <th>t</th><th>$1,000 &rarr;</th><th></th></tr></thead>
+      <tbody><tr><td class="m dim">A</td><td>T+18h, perp filter ≤18h</td><td class="m">134</td><td class="m">+4.86%</td><td class="m">68.7%</td><td class="m pos">+4.03</td><td class="m"><strong>$6,180</strong></td><td class="dim small">the figure this page reported first</td></tr>
+<tr><td class="m dim">B</td><td>T+18h, perp filter ≤12h</td><td class="m">115</td><td class="m">+4.52%</td><td class="m">67.8%</td><td class="m neg">+3.45</td><td class="m"><strong>$4,258</strong></td><td class="dim small">tuned hour, honest event set — isolates the filter</td></tr>
+<tr><td class="m dim">C</td><td>T+12h, perp filter ≤12h</td><td class="m">115</td><td class="m">+2.71%</td><td class="m">62.6%</td><td class="m neg">+1.99</td><td class="m"><strong>$2,269</strong></td><td class="dim small">published now — the operator's own hypothesis, never swept</td></tr></tbody></table></div>
+    <div class="split">
+      <div><div class="k">Relaxed perp filter</div>
+        <div class="v">$1,922</div>
+        <div class="s">49% of the fall &middot; A &rarr; B</div>
+        <p>19 listings whose perpetual did not exist at T+12h. There was
+        nothing to short at the honest entry hour, so they are not trades that were lost
+        &mdash; they are trades that were never placeable. They are also the strongest
+        group in the sample: +6.87% mean, 74% win.</p></div>
+      <div><div class="k">Entry hour</div>
+        <div class="v">$1,989</div>
+        <div class="s">51% of the fall &middot; B &rarr; C</div>
+        <p>T+18h was the best of ten hours swept on this same data. Paired against T+12h
+        on the identical 115 listings the difference is +1.82pp at
+        t&nbsp;1.50 &mdash; not distinguishable from noise. The sweep peak is a maximum,
+        not a measurement.</p></div>
+    </div>
+    <p class="dim small">Neither figure was lost. $6,180 was never available: it counted
+    trades that could not have been placed, and reported the top of a search as though it
+    were an independent result.</p>
+  </section>
 
   <section>
     <h2>The goal</h2>
