@@ -107,3 +107,101 @@ not, that disagreement is the finding.
   thesis. It cannot be resolved here; only the forward test on Binance listings can.
 - **Spot, not perp.** The trade is a perpetual short and the series is spot.
 - **One market regime.** 730 days, one cycle. Unchanged from every previous objection.
+
+---
+
+# RESULT — run 2026-07-28, after the above was committed
+
+## Both primaries are negative, and they agree
+
+| sample | arm | n | mean | median | win | t | 95% CI |
+|---|---|---|---|---|---|---|---|
+| **pooled fresh** | t12 | 92 | **−2.65%** | **−15.32%** | **43.5%** | −1.80 | −5.55 … +0.24 |
+| **pooled fresh** | t18 | 93 | **−3.27%** | **−15.32%** | **40.9%** | **−2.24** | −6.13 … −0.41 |
+| new evidence only | t12 | 65 | −2.01% | −5.51% | 46.2% | −1.16 | −5.41 … +1.38 |
+| new evidence only | t18 | 65 | −2.59% | −15.32% | 43.1% | −1.49 | −5.99 … +0.81 |
+
+The pre-registered refutation threshold was "clearly negative, **or win rate ≤ 45%**".
+Both arms of the pooled sample are below 45%, and t18 reaches **−2.24**, the mirror image of
+the bar. The two primaries agree in sign and roughly in size, which was the condition set in
+advance for taking the pooled figure seriously.
+
+How unlikely this is if the edge were real:
+
+| | P(mean this low \| true +1.99%) | P(mean this low \| true +2.71%) | P(this few wins \| p=0.626) |
+|---|---|---|---|
+| t12 pooled, n 92 | **0.083%** | 0.014% | **0.015%** |
+| t18 pooled, n 93 | **0.016%** | 0.002% | **0.002%** |
+| t12 new only, n 65 | 1.04% | 0.32% | 0.51% |
+| t18 new only, n 65 | 0.42% | 0.11% | 0.11% |
+
+## Every robustness split points the same way
+
+| split | n | mean | win |
+|---|---|---|---|
+| first half of the window | 46 | −2.30% | 45.7% |
+| second half | 46 | −3.01% | 41.3% |
+| priced on Bybit | 22 | −4.40% | 36.4% |
+| priced on KuCoin | 37 | −2.88% | 40.5% |
+| priced on Gate | 25 | −1.25% | 52.0% |
+| priced on OKX | 8 | −1.22% | 50.0% |
+| listed on ONE venue only | 35 | **−4.99%** | 37.1% |
+| listed on 2+ venues | 57 | −1.22% | 47.4% |
+
+Not one pricing venue and not one time half is positive. The only positive cell anywhere is
+Gate-anchored events at +0.46% on n=28, t 0.18 — noise. The pattern that the more venues
+listed a token the less badly it did is consistent with venue count proxying for token
+quality, and even the 2+ venue group is negative.
+
+## The mechanism, and it is the opposite of the thesis
+
+| | target | stop | time | median MAE | would liquidate unstopped |
+|---|---|---|---|---|---|
+| Binance sample, n 115 | 61 | 39 | 15 | ~10% | 7 (6%) |
+| pooled t12, n 92 | **33** | **49** | 10 | **22.1%** | **15 (16%)** |
+| pooled t18, n 93 | 32 | 51 | 10 | 23.5% | 15 (16%) |
+
+The exit mix inverted. In the Binance sample the take profit fired more often than the stop,
+61 to 39. Here the stop fires more often, 49 to 33, the median trade goes 22% **against** a
+short before it resolves, and 16% of events would have liquidated a 1× short outright. These
+tokens do not pump and fall. They pump and keep going.
+
+## The one hypothesis left standing, and how it now looks
+
+The Binance sample and the pooled non-Binance sample differ by **+5.36pp at t 2.67** — they
+are statistically distinguishable. Two readings fit:
+
+**(a)** Binance listings really are a different event: a much larger captive audience arriving
+at once, so the pump exhausts and reverses where a Gate or KuCoin listing simply drifts up.
+
+**(b)** The Binance result was the artefact, and this is what the population actually looks like.
+
+**(b) has the better support.** The Binance sample never cleared its own significance bar
+(t 1.99 against 3.55), had no clean holdout left, and four measurement bugs were found inside
+it — every one of which happened to improve the result. A run of favourable errors is itself
+evidence about the direction of the undiscovered ones.
+
+Reading (a) cannot be dismissed and cannot be tested here. Only the forward test on live
+Binance listings can settle it, and that is what is running.
+
+## Where survivorship leaves this
+
+The pre-registration stated before the run that survivorship favours the edge: only currently
+trading pairs were enumerated, and delisted tokens are disproportionately the ones that
+collapsed — exactly what a short would have won. So the true pooled mean is probably better
+than −2.65%. It would have to be better by **4.6pp** to reach the Binance figure, and by
+2.7pp merely to reach zero.
+
+## Verdict
+
+**The general thesis is refuted on out-of-sample data.** A new spot listing on a major venue,
+excluding Binance, does not fall after its pump often enough or far enough to short. Across
+92 fresh tokens on four venues it does the opposite, with a probability under the edge
+hypothesis of 0.08% or less.
+
+What survives is only the narrow claim that **Binance listings specifically** behave
+differently. That claim is now statistically distinguishable from the pooled result, which is
+the strongest thing that can be said for it, and it has **no clean supporting evidence at
+all**. The paper forward test continues because it costs nothing and is the only remaining
+clean test of it. **No real capital should go near this.**
+
