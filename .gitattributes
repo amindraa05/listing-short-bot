@@ -1,0 +1,6 @@
+# The deploy scripts run on Linux. Without this, a checkout on Windows gives them CRLF
+# and bash fails on `set -euo pipefail\r` with "invalid option name" — which is exactly
+# what happened once. Python is normalised too so the shebang stays clean.
+*.sh text eol=lf
+*.py text eol=lf
+*.md text eol=lf
