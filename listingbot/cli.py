@@ -6,6 +6,7 @@ import argparse
 import csv
 import json
 import logging
+import math
 import os
 import sys
 import time
@@ -13,8 +14,7 @@ import time
 from . import config as C
 from . import engine, report, store
 
-BACKTEST = {"n": 115, "mean": 2.71, "median": 14.77, "win": 62.6, "t": 1.99,
-            "sd": 14.6, "bar": 3.55}
+BAR = 2.2426          # 2.0 + 0.35*ln(2), for the two pre-declared arms
 
 
 def _log(verbose=False):
@@ -38,69 +38,111 @@ def cmd_tick(args):
     return 1 if r["errors"] else 0
 
 
+def _arm_stats(rows):
+    nets = [r["net_pct"] for r in rows if r["net_pct"] is not None]
+    if not nets:
+        return None
+    mean = sum(nets) / len(nets)
+    st = {"n": len(nets), "mean": mean,
+          "win": sum(1 for x in nets if x > 0) / len(nets) * 100,
+          "pnl": sum(r["pnl_usdt"] or 0 for r in rows)}
+    if len(nets) > 2:
+        sd = (sum((x - mean) ** 2 for x in nets) / (len(nets) - 1)) ** 0.5
+        st["sd"] = sd
+        st["t"] = mean / (sd / math.sqrt(len(nets))) if sd else 0.0
+    return st
+
+
 def cmd_status(args):
     cx = store.connect()
-    eq = store.get_equity(cx)
     started = cx.execute("SELECT value FROM meta WHERE key='started_ms'").fetchone()
     days = ((store.now_ms() - int(started["value"])) / 86400_000) if started else 0
-    closed = cx.execute(
-        "SELECT net_pct, pnl_usdt, exit_reason FROM positions WHERE status='closed'"
-    ).fetchall()
+    closed = cx.execute("SELECT * FROM positions WHERE status='closed'").fetchall()
     openp = store.open_positions(cx)
-    ev = {r["status"]: r["n"] for r in cx.execute(
-        "SELECT status, COUNT(*) n FROM events GROUP BY status")}
 
-    print("=" * 78)
-    print("  LISTING-SHORT PAPER TEST")
-    print("=" * 78)
-    print(f"  running for            {days:.1f} days")
-    print(f"  rule                   entry T+{C.ENTRY_HOURS}h, TP {C.TAKE_PROFIT*100:.0f}%, "
-          f"SL {C.STOP_LOSS*100:.0f}%, hold {C.MAX_HOLD_HOURS}h, size "
-          f"{C.POSITION_PCT*100:.0f}%")
-    print(f"  paper equity           {eq:,.2f} {C.CURRENCY}  "
-          f"(from {C.PAPER_START_EQUITY:,.2f})")
-    print(f"  events by status       " + ("  ".join(f"{k}:{v}" for k, v in ev.items())
-                                          or "none yet"))
-    print(f"  positions              {len(closed)} closed, {len(openp)} open")
+    print("=" * 90)
+    print("  LISTING-SHORT PAPER TEST — two arms, separate books")
+    print("=" * 90)
+    print(f"  running for   {days:.1f} days")
+    print(f"  shared        TP {C.TAKE_PROFIT*100:.0f}%  SL {C.STOP_LOSS*100:.0f}%  "
+          f"hold {C.MAX_HOLD_HOURS}h  size {C.POSITION_PCT*100:.0f}% of the arm's book")
+    print(f"  bar           t {BAR:.2f}  (2.0 + 0.35*ln(2), two pre-declared arms)")
 
-    if closed:
-        nets = [c["net_pct"] for c in closed if c["net_pct"] is not None]
-        wins = sum(1 for n in nets if n > 0)
-        mean = sum(nets) / len(nets)
-        reasons = {}
-        for c in closed:
-            reasons[c["exit_reason"]] = reasons.get(c["exit_reason"], 0) + 1
-        print(f"\n  LIVE RESULT SO FAR")
-        print(f"    n                    {len(nets)}")
-        print(f"    mean                 {mean:+.2f}%")
-        print(f"    win rate             {wins/len(nets)*100:.1f}%")
-        print(f"    exits                " + "  ".join(f"{k}:{v}" for k, v in reasons.items()))
-        if len(nets) > 2:
-            sd = (sum((x - mean) ** 2 for x in nets) / (len(nets) - 1)) ** 0.5
-            t = mean / (sd / len(nets) ** 0.5) if sd > 0 else 0.0
-            print(f"    sd                   {sd:.1f}%")
-            print(f"    t                    {t:+.2f}   (bar {BACKTEST['bar']})")
-        print(f"\n  BACKTEST EXPECTATION, for comparison")
-        print(f"    n {BACKTEST['n']}  mean {BACKTEST['mean']:+.2f}%  "
-              f"win {BACKTEST['win']}%  t {BACKTEST['t']}  sd {BACKTEST['sd']}%")
-        print(f"\n  The backtest did NOT clear its bar of {BACKTEST['bar']}. This test is")
-        print(f"  the missing evidence, not a confirmation of a known edge.")
-        if len(nets) < 15:
-            print(f"  {15-len(nets)} more trades before even a disaster check is meaningful.")
-        elif wins / len(nets) <= 0.40:
-            print(f"  WIN RATE AT OR BELOW 40% — this is the pre-agreed stop signal.")
-    else:
-        print("\n  no closed positions yet")
+    for a in C.ARM_IDS:
+        cfg = C.ARMS[a]
+        bt = cfg["backtest"]
+        rows = [r for r in closed if r["arm"] == a]
+        eq = store.get_equity(cx, a)
+        opn = [r for r in openp if r["arm"] == a]
+        print()
+        print(f"  [{a}] {cfg['label']} — {cfg['note']}")
+        print(f"      book              {eq:,.2f} {C.CURRENCY} "
+              f"({(eq/C.PAPER_START_EQUITY-1)*100:+.2f}% from "
+              f"{C.PAPER_START_EQUITY:,.0f})")
+        print(f"      positions         {len(rows)} closed, {len(opn)} open")
+        st = _arm_stats(rows)
+        if st:
+            print(f"      mean / win        {st['mean']:+.2f}%  {st['win']:.1f}%"
+                  f"      backtest {bt['mean']:+.2f}%  {bt['win']}%")
+            if "t" in st:
+                print(f"      t                 {st['t']:+.2f}"
+                      f"               backtest {bt['t']:+.2f}")
+            if st["n"] < 15:
+                print(f"      {15-st['n']} more closed trades before the stop check means "
+                      f"anything")
+            elif st["win"] <= 40:
+                print("      WIN RATE AT OR BELOW 40% — pre-agreed stop signal for this arm")
+        else:
+            print(f"      no closed positions yet   "
+                  f"(backtest {bt['mean']:+.2f}%, win {bt['win']}%, t {bt['t']:+.2f})")
+
+    # The paired test is the reason both arms exist: same listing, both arms, so the
+    # between-listing variance that left the backtest at t 1.50 cancels out.
+    by = {a: {r["base"]: r for r in closed if r["arm"] == a} for a in C.ARM_IDS}
+    if len(C.ARM_IDS) >= 2:
+        lo, hi = C.ARM_IDS[0], C.ARM_IDS[1]
+        shared = sorted(set(by[lo]) & set(by[hi]))
+        d = [by[hi][b]["net_pct"] - by[lo][b]["net_pct"] for b in shared]
+        print()
+        print(f"  PAIRED  {hi} minus {lo}, on listings both arms closed")
+        if len(d) < 3:
+            print(f"      {len(d)} pair(s) so far — needs at least 3")
+        else:
+            mean = sum(d) / len(d)
+            sd = (sum((x - mean) ** 2 for x in d) / (len(d) - 1)) ** 0.5
+            se = sd / math.sqrt(len(d))
+            t = mean / se if se else 0.0
+            print(f"      n {len(d)}   mean {mean:+.2f} pp   t {t:+.2f}   "
+                  f"95% CI {mean-1.96*se:+.2f} .. {mean+1.96*se:+.2f} pp")
+            print(f"      {hi} better on {sum(1 for x in d if x > 0)}, "
+                  f"worse on {sum(1 for x in d if x < 0)}")
+            print(f"      backtest said +1.82 pp at t 1.50 — inconclusive, which is why "
+                  f"this is measured forward")
+
+    plans = cx.execute("SELECT arm, status, COUNT(*) n FROM arm_plans "
+                       "GROUP BY arm, status ORDER BY arm, status").fetchall()
+    if plans:
+        print()
+        print("  LISTING PLANS BY ARM")
+        for a in C.ARM_IDS:
+            bits = "  ".join(f"{r['status']}:{r['n']}" for r in plans if r["arm"] == a)
+            print(f"      {a:5s} {bits or 'none yet'}")
 
     if openp:
-        print(f"\n  OPEN")
-        print(f"  {'token':10s} {'entry':>12s} {'TP':>12s} {'SL':>12s} {'age':>7s} "
-              f"{'worst':>8s}")
+        print()
+        print(f"  OPEN")
+        print(f"  {'arm':5s} {'token':10s} {'entry':>12s} {'TP':>12s} {'SL':>12s} "
+              f"{'age':>7s} {'worst':>8s}")
         for p in openp:
             age = (store.now_ms() - p["opened_ms"]) / 3_600_000
-            print(f"  {p['base']:10s} {p['entry_vwap']:12.8g} {p['tp_price']:12.8g} "
-                  f"{p['sl_price']:12.8g} {age:6.1f}h {p['mae_pct']:+7.1f}%")
-    print("=" * 78)
+            print(f"  {p['arm']:5s} {p['base']:10s} {p['entry_vwap']:12.8g} "
+                  f"{p['tp_price']:12.8g} {p['sl_price']:12.8g} {age:6.1f}h "
+                  f"{p['mae_pct']:+7.1f}%")
+    print("=" * 90)
+    print("  Neither arm is a confirmed edge. t12 failed the backtest's own bar of 3.55;")
+    print("  t18 cleared it but was the product of a ten-hour sweep. PREREG_ARMS.md")
+    print("  freezes both, and neither may be dropped once trades exist.")
+    print("=" * 90)
     return 0
 
 
@@ -112,13 +154,14 @@ def cmd_ledger(args):
     if not rows:
         print("no closed positions yet")
         return 0
-    print(f"  {'opened':17s} {'token':9s} {'gap':>7s} {'entry slip':>11s} "
+    print(f"  {'arm':5s} {'opened':17s} {'token':9s} {'gap':>7s} {'entry slip':>11s} "
           f"{'exit slip':>10s} {'fund':>7s} {'gross':>8s} {'net':>8s} {'reason':10s}")
     for p in rows:
         opened = time.strftime("%Y-%m-%d %H:%M", time.gmtime(p["opened_ms"] / 1000))
+        arm = p["arm"]
         gap = p["gap_hours"]
         gap_s = "-" if gap is None else f"{gap:+.0f}h"
-        print(f"  {opened:17s} {p['base']:9s} {gap_s:>7s} "
+        print(f"  {arm:5s} {opened:17s} {p['base']:9s} {gap_s:>7s} "
               f"{p['entry_slippage_bps']:10.1f}b {p['exit_slippage_bps']:9.1f}b "
               f"{p['funding_frac']*100:+6.2f}% {p['gross_pct']:+7.2f}% "
               f"{p['net_pct']:+7.2f}% {p['exit_reason']:10s}")

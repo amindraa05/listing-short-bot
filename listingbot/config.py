@@ -1,27 +1,69 @@
 """Frozen configuration for the listing-short paper trader.
 
-THE RULE IS FROZEN AND MUST NOT BE TUNED. Its whole value is that these numbers were
-not chosen by looking at outcomes:
+THE RULE IS FROZEN AND MUST NOT BE TUNED. Its whole value is that these numbers were not
+chosen by looking at outcomes.
 
-  entry T+12h   the operator's original observation, stated before any data was pulled
-  TP 15%        inside the operator's original "15-20%" framing
-  SL 15%        the one contaminated parameter — picked from a grid, and flagged as such
-  hold 72h      unchanged throughout the research
+TWO ARMS run side by side, both declared in PREREG_ARMS.md before either had traded:
 
-T+18h and T+21h measured better in backtest. They are deliberately NOT used, because
-they were the peak of a ten-hour sweep. Changing any value here voids the forward test,
-because the point of the exercise is to see whether the untuned rule survives contact
-with data nobody has looked at.
+  t12   entry T+12h, perp required by T+12h   the operator's original hypothesis,
+                                              stated before any data was pulled
+  t18   entry T+18h, perp required by T+18h   the middle of a broad elevated plateau
+                                              (T+14h..T+24h), NOT the sweep peak, which
+                                              was T+22h
 
-Backtest expectation to judge the live results against:
-  n 115 over 1.89 years, mean +2.71%, median +14.77%, win 62.6%, t 1.99, sd 14.6%
-  Bar was 3.55, so the rule did NOT clear it. This forward test is the missing evidence.
-  At ~5 events/month, 15 events cannot confirm an edge — but if the win rate comes in
-  at 40% or below, the strategy is broken and should be stopped.
+Running both is a deliberate answer to a correct argument: forward data cannot be
+overfitted, so a parameter's history is not a reason to refuse it going forward. What it
+IS a reason for is refusing to report its backtest as independent evidence. The backtest
+cannot separate the two hours — paired on the same 115 listings the difference is +1.82pp
+at t 1.50 — so the arms settle it on clean data instead. Two pre-declared configurations
+carry a bar of 2.0 + 0.35*ln(2) = 2.24, which costs essentially nothing.
+
+Shared and frozen across both arms: TP 15%, SL 15%, hold 72h, 1x, 20% of that arm's own
+equity. Each arm keeps a SEPARATE 1,000 USDT book so one arm's drawdown cannot distort the
+other's sizing.
+
+Backtest expectation to judge each arm against:
+  t12   n 115 over 1.89 years, mean +2.71%, median +14.77%, win 62.6%, t 1.99, sd 14.6%
+  t18   n 134,                 mean +4.86%, median +14.77%, win 68.7%, t 4.03
+Neither is a confirmed edge; t12 failed the backtest's own bar of 3.55. At ~5 events a
+month, 15 events cannot confirm anything — but a win rate at or below 40% after 15 closed
+trades means that arm is broken and stops.
+
+DO NOT edit the arm table below, and DO NOT drop an arm once trades exist. Either action
+turns this back into a sweep, just on newer data.
 """
 
-# ---- the frozen rule -------------------------------------------------------
-ENTRY_HOURS = 12          # hours after the first traded hour on Binance spot
+# ---- the two frozen arms ---------------------------------------------------
+# Each arm's perp requirement equals its entry hour, and that is not a tunable: at a
+# T+18h entry a perp existing by T+18h is genuinely shortable, and pairing a T+12h claim
+# with a T+18h event set is precisely the error that accounted for half the fall from
+# $6,180 to $2,269 in the research.
+ARMS = {
+    "t12": {"entry_hours": 12, "label": "T+12h",
+            "note": "the operator's hypothesis, never swept",
+            "backtest": {"n": 115, "mean": 2.71, "median": 14.77, "win": 62.6,
+                         "t": 1.99, "sd": 14.6}},
+    "t18": {"entry_hours": 18, "label": "T+18h",
+            "note": "middle of the T+14-24h plateau; the sweep peak was T+22h",
+            "backtest": {"n": 134, "mean": 4.86, "median": 14.77, "win": 68.7,
+                         "t": 4.03, "sd": 14.6}},
+}
+ARM_IDS = list(ARMS)
+DEFAULT_ARM = "t12"
+
+
+def arm_entry_hours(arm):
+    return ARMS[arm]["entry_hours"]
+
+
+def arm_perp_by_hours(arm):
+    """Identical to the entry hour, by construction. Named separately because the two
+    are conceptually different and a future reader should see they cannot drift apart."""
+    return ARMS[arm]["entry_hours"]
+
+
+# ---- the frozen rule, shared by both arms ----------------------------------
+ENTRY_HOURS = 12          # retained for the t12 arm and for anything reading one number
 TAKE_PROFIT = 0.15        # fraction, favourable
 STOP_LOSS = 0.15          # fraction, adverse
 MAX_HOLD_HOURS = 72
@@ -33,6 +75,7 @@ POSITION_PCT = 0.20       # of equity per position, set by the operator.
                           # ordering gave a kinder 16.7%; size against the p90.
 
 # ---- paper account ---------------------------------------------------------
+# Per arm, not shared: each book starts here and compounds independently.
 PAPER_START_EQUITY = 1000.0
 CURRENCY = "USDT"
 
@@ -46,7 +89,9 @@ QUOTE_ASSET = "USDT"
 # A perpetual must exist by the entry hour. This is not a tunable filter: you cannot
 # short what has no perp, and requiring it also excludes stablecoins, liquid-staking
 # tokens and tokenised equities, none of which the thesis is about.
-PERP_MUST_EXIST_BY_HOURS = ENTRY_HOURS
+# Per-arm; this constant is the widest of them, used only for deciding whether an event
+# is worth tracking at all.
+PERP_MUST_EXIST_BY_HOURS = max(a["entry_hours"] for a in ARMS.values())
 MIN_BOOK_NOTIONAL_USDT = 200.0   # refuse to paper-fill into a book too thin to be real
 
 # ---- operational -----------------------------------------------------------

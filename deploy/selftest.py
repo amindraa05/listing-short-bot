@@ -4,8 +4,9 @@ Runs against an ISOLATED database so the real forward-test record is never touch
 Fills are genuine — the order book is walked live — so this proves the parts that
 matter: book walking, fee accounting, funding sign, and each of the four exits.
 
-A synthetic event is injected with a listing time chosen so the T+12h entry is due
-right now. Everything downstream is the production code path, unmodified.
+A synthetic event is injected with a listing time chosen so BOTH arms' entries fall due
+right now, which also proves the two books stay separate. Everything downstream is the
+production code path, unmodified.
 
 Usage:  LISTINGBOT_HOME=/tmp/lb-selftest python3 deploy/selftest.py [CONTRACT]
 """
@@ -35,28 +36,39 @@ def mark(contract):
     return (t or {}).get("last") or (t or {}).get("mark")
 
 
-def inject(cx, tag, back_hours=0.0):
-    """Insert an event whose T+12h entry is due now, tagged so tests stay separate."""
+def inject(cx, tag, arm):
+    """Insert an event whose entry for `arm` is due now, tagged so tests stay separate."""
     now = store.now_ms()
-    listed = now - int((C.ENTRY_HOURS + back_hours) * 3_600_000)
+    h = C.arm_entry_hours(arm)
+    listed = now - int(h * 3_600_000)
     sym = f"{BASE}{tag}USDT"
-    store.add_event(cx, symbol=sym, base=f"{BASE}{tag}", listed_ms=listed,
-                    detected_ms=now, perp_venue="gate", perp_symbol=CONTRACT,
-                    perp_launch_ms=listed - 3_600_000, gap_hours=-1.0,
-                    eligible=1, entry_due_ms=listed + C.ENTRY_HOURS * 3_600_000,
-                    status="watching", notes="SELFTEST — synthetic event")
-    return cx.execute("SELECT id FROM events WHERE symbol=?", (sym,)).fetchone()["id"]
+    eid = store.add_event(cx, symbol=sym, base=f"{BASE}{tag}", listed_ms=listed,
+                          detected_ms=now, perp_venue="gate", perp_symbol=CONTRACT,
+                          perp_launch_ms=listed - 3_600_000, gap_hours=-1.0,
+                          eligible=0, status="watching",
+                          notes="SELFTEST — synthetic event")
+    # Only the arm under test is armed; the other is parked so one synthetic listing
+    # does not silently open two positions and confuse the exit being checked.
+    for a in C.ARM_IDS:
+        if a == arm:
+            store.set_plan(cx, eid, a, eligible=1, status="watching",
+                           entry_due_ms=listed + h * 3_600_000)
+        else:
+            store.set_plan(cx, eid, a, eligible=0, status="skipped",
+                           ineligible_reason="selftest: not the arm under test")
+    return eid
 
 
-def open_one(cx, tag):
-    inject(cx, tag)
+def open_one(cx, tag, arm=None):
+    arm = arm or C.DEFAULT_ARM
+    inject(cx, tag, arm)
     n = engine.open_due_positions(cx)
     if not n:
-        print(f"  FAILED to open ({tag})")
+        print(f"  FAILED to open ({tag}/{arm})")
         return None
     p = cx.execute("SELECT * FROM positions WHERE status='open' "
                    "ORDER BY id DESC LIMIT 1").fetchone()
-    print(f"  opened id={p['id']}  entry {p['entry_vwap']:.8g}  "
+    print(f"  opened id={p['id']} arm={p['arm']}  entry {p['entry_vwap']:.8g}  "
           f"mid {p['entry_mid']:.8g}  slip {p['entry_slippage_bps']:+.2f}bps  "
           f"spread {p['entry_spread_bps']:.2f}bps  notional {p['notional_usdt']:.2f}  "
           f"fee {p['entry_fee_usdt']:.4f}")
@@ -78,9 +90,10 @@ def main():
     print("=" * 84)
     print(f"  db        {C.DB_PATH}")
     print(f"  contract  {CONTRACT}")
-    print(f"  rule      entry T+{C.ENTRY_HOURS}h  TP {C.TAKE_PROFIT*100:.0f}%  "
-          f"SL {C.STOP_LOSS*100:.0f}%  hold {C.MAX_HOLD_HOURS}h  "
-          f"size {C.POSITION_PCT*100:.0f}%")
+    print(f"  arms      " + "  ".join(f"{a}=T+{C.arm_entry_hours(a)}h"
+                                       for a in C.ARM_IDS))
+    print(f"  shared    TP {C.TAKE_PROFIT*100:.0f}%  SL {C.STOP_LOSS*100:.0f}%  "
+          f"hold {C.MAX_HOLD_HOURS}h  size {C.POSITION_PCT*100:.0f}% of the arm's book")
     if "selftest" not in C.DB_PATH:
         print("\n  REFUSING: set LISTINGBOT_HOME to a path containing 'selftest' so the")
         print("  real forward-test database cannot be written to by this script.")
@@ -94,7 +107,7 @@ def main():
     print(f"  live mark {px:.8g}")
 
     hr("0. BOOK QUOTE — is a fill even possible at this size?")
-    eq = store.get_equity(cx)
+    eq = store.get_equity(cx, C.DEFAULT_ARM)
     q, err = fills.quote(CONTRACT, "sell", eq * C.POSITION_PCT)
     if q is None:
         print(f"  book refused the size: {err}")
@@ -115,7 +128,7 @@ def main():
         print(f"  reason={r['exit_reason']}  gross {r['gross_pct']:+.3f}%  "
               f"funding {r['funding_frac']*100:+.4f}% ({r['funding_periods']}p)  "
               f"net {r['net_pct']:+.3f}%  pnl {r['pnl_usdt']:+.4f}  "
-              f"equity {store.get_equity(cx):.4f}")
+              f"book {store.get_equity(cx, r['arm']):.4f}")
 
     hr("2. STOP EXIT — move SL below the market")
     p = open_one(cx, "S")
@@ -125,7 +138,7 @@ def main():
         engine.manage_open_positions(cx)
         r = cx.execute("SELECT * FROM positions WHERE id=?", (p["id"],)).fetchone()
         print(f"  reason={r['exit_reason']}  net {r['net_pct']:+.3f}%  "
-              f"pnl {r['pnl_usdt']:+.4f}  equity {store.get_equity(cx):.4f}")
+              f"pnl {r['pnl_usdt']:+.4f}  book {store.get_equity(cx, r['arm']):.4f}")
 
     hr("3. TIME EXIT — put the deadline in the past")
     p = open_one(cx, "H")
@@ -159,16 +172,40 @@ def main():
         ok = r["exit_reason"] == "stop"
         print(f"  reason={r['exit_reason']}  {'CORRECT' if ok else 'WRONG — adverse must be checked first'}")
 
+    hr("6. SEPARATE BOOKS — a loss in one arm must not touch the other")
+    before = {a: store.get_equity(cx, a) for a in C.ARM_IDS}
+    other = C.ARM_IDS[1] if len(C.ARM_IDS) > 1 else C.ARM_IDS[0]
+    p = open_one(cx, "X", arm=other)
+    if p:
+        force(cx, p["id"], sl_price=px * 0.98)
+        engine.manage_open_positions(cx)
+        after = {a: store.get_equity(cx, a) for a in C.ARM_IDS}
+        moved = [a for a in C.ARM_IDS if abs(after[a] - before[a]) > 1e-9]
+        for a in C.ARM_IDS:
+            print(f"  {a:5s} {before[a]:12.4f} -> {after[a]:12.4f}")
+        ok = moved == [other]
+        print(f"  only {other} moved: {'CORRECT' if ok else 'WRONG — books are shared'}")
+
+    hr("PER-ARM POSITION SIZING")
+    for a in C.ARM_IDS:
+        print(f"  {a:5s} book {store.get_equity(cx, a):10.4f}  "
+              f"next notional {store.get_equity(cx, a)*C.POSITION_PCT:8.2f}")
+
     hr("RESULT")
     rows = cx.execute("SELECT exit_reason, COUNT(*) n, ROUND(AVG(net_pct),4) avg_net "
                       "FROM positions WHERE status='closed' GROUP BY exit_reason").fetchall()
     for r in rows:
         print(f"  {r['exit_reason']:20s} n={r['n']}  avg net {r['avg_net']:+.4f}%")
+    for a in C.ARM_IDS:
+        rows = cx.execute("SELECT COUNT(*) n FROM positions WHERE arm=?", (a,)).fetchone()
+        print(f"  arm {a:5s} positions {rows['n']}   book "
+              f"{store.get_equity(cx, a):.4f}")
     tot = cx.execute("SELECT COUNT(*) n FROM positions").fetchone()["n"]
     op = cx.execute("SELECT COUNT(*) n FROM positions WHERE status='open'").fetchone()["n"]
     fl = cx.execute("SELECT COUNT(*) n FROM fills").fetchone()["n"]
     print(f"\n  positions {tot} ({op} still open)   fills recorded {fl}")
-    print(f"  equity {store.get_equity(cx):.4f} from {C.PAPER_START_EQUITY:.2f}")
+    print(f"  total across arms {store.get_equity(cx):.4f} from "
+          f"{C.PAPER_START_EQUITY*len(C.ARM_IDS):.2f}")
     print("\n  Every exit above was a real round trip through the live book, so the")
     print("  small negative net figures are the true cost of trading this size:")
     print("  spread crossed twice plus 0.05% taker each side, which is exactly what")

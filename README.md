@@ -9,18 +9,20 @@ signing code and no API key anywhere in this repository.
 The backtest behind this rule **did not clear its own significance bar**, and the reason
 that matters is worth stating precisely rather than burying:
 
-| | value |
-|---|---|
-| events | 115 over 1.89 years |
-| mean per trade | +2.71% |
-| median | +14.77% |
-| win rate | 62.6% |
-| t | **1.99** against a bar of **3.55** |
-| DEV subset that chose no parameter | t **1.14** |
+| | arm t12 | arm t18 |
+|---|---|---|
+| events | 115 over 1.89 years | 134 |
+| mean per trade | +2.71% | +4.86% |
+| median | +14.77% | +14.77% |
+| win rate | 62.6% | 68.7% |
+| t | **1.99** against a bar of **3.55** | **4.03** — clears it |
+| DEV subset that chose no parameter | t **1.14** | — |
 
-A tuned version reached t 4.03 by entering at T+18h — the peak of a ten-hour sweep. That
-number is not used here. The rule below uses T+12h, which came from the operator's own
-observation before any data was pulled.
+Both figures come with a caveat that matters more than either number. t12 fails the bar.
+t18 clears it, but 84 is *this project's count* of the configurations searched; the count
+is not knowable exactly, and at 500 the bar would be 4.17 and t18 would fail too. The
+difference between the two arms is also not itself significant (+1.82pp at t 1.50), which
+is exactly why both are being run forward rather than argued about.
 
 **Live results:** <https://amindraa05.github.io/listing-short-bot/monitor.html> ·
 **research findings:** <https://amindraa05.github.io/listing-short-bot/>
@@ -29,28 +31,49 @@ There is also **no clean holdout left**: all 115 events were used to sweep the e
 pick the exits and repair filters. Forward data is the only uncontaminated evidence that
 remains, and collecting it is the entire purpose of this bot.
 
-## The frozen rule
+## Two arms
+
+The backtest could not settle its own central question — whether the entry belongs at
+T+12h or T+18h — so both run forward, side by side, each on its own book. Full reasoning
+and the frozen numbers are in **[PREREG_ARMS.md](PREREG_ARMS.md)**, written before either
+arm had traded.
 
 ```
 signal      a new USDT pair starts trading on Binance spot
-filter      a perpetual must already exist by the entry hour (Gate / OKX / KuCoin)
+filter      a Gate perpetual must exist by THAT ARM's entry hour
 direction   short, never long
-entry       T+12h after the first traded HOUR — not midnight of the listing day
-take profit 15%
-stop loss   15%   (not optional: 5 of 115 events would have liquidated a 1x short)
-max hold    72h
-leverage    1x
-size        20% of paper equity
+take profit 15%          shared
+stop loss   15%          shared (not optional: 5 of 115 events would have liquidated a 1x short)
+max hold    72h          shared
+leverage    1x           shared
+size        20% of that arm's own equity
+
+  arm t12   entry T+12h   the operator's hypothesis, stated before any data was pulled
+  arm t18   entry T+18h   the middle of a broad elevated plateau, T+14h..T+24h
 ```
 
-Sizing is the one number the operator set deliberately rather than inheriting from the
-research: 20% of equity per position. The bootstrapped p90 drawdown was 35.8% at 30% and
-scales roughly linearly, so expect about **24%** at 20% — size against that figure, not
-against the kinder 16.7% the historical trade ordering happened to produce.
+**Why run the tuned hour at all?** Because refusing a parameter for having come from a
+sweep is a rule about *reporting a backtest*, not about choosing what to run forward —
+forward data cannot be overfitted. Choosing is a forecast, and the backtest cannot make
+it: paired on the same 115 listings, T+18h minus T+12h is **+1.82pp at t 1.50**, CI
+−0.56pp to +4.20pp. So both run, both were declared in advance, and the bar for two
+pre-declared configurations is `2.0 + 0.35 × ln(2) = 2.24` — essentially free.
 
-**Do not tune the rest.** Their only value is that they were not chosen by looking at
-outcomes. Changing one voids the forward test. A trailing take-profit was tested against
-a properly sealed holdout and refuted on DEV, so the holdout was never spent.
+**Why T+18h and not T+22h, which measured best?** Because 22h *is* the sweep peak. The
+whole T+14h–T+24h band is elevated and the risk mechanism behind it is monotone — stop
+hits fall 39 → 31 → 30 and median adverse excursion falls 10.2% → 9.6% → 6.9% as the
+entry moves later, because the violent part of the pump is front-loaded. Past ~24h the
+fall has already happened and the edge decays. T+18h is chosen as the middle of that
+shape, not the top of the search.
+
+Sizing is the one number the operator set deliberately: 20% of that arm's equity. The
+bootstrapped p90 drawdown was 35.8% at 30% and scales roughly linearly, so expect about
+**24%** at 20% — size against that, not against the kinder 16.7% the historical trade
+ordering happened to produce.
+
+**Do not tune any of it, and do not drop an arm.** Either action turns this back into a
+sweep, just on newer data. A trailing take-profit was tested against a properly sealed
+holdout and refuted on DEV, so the holdout was never spent.
 
 ## Honest fills
 
@@ -80,8 +103,8 @@ that a positive rate is a **credit** to the short, which on a hyped listing it u
 
 ```bash
 python -m listingbot.cli tick      # one cycle — what the timer calls
-python -m listingbot.cli status    # live results against the backtest expectation
-python -m listingbot.cli ledger    # every closed position with measured slippage
+python -m listingbot.cli status    # per-arm results, plus the paired t18-minus-t12 test
+python -m listingbot.cli ledger    # every closed position, by arm, with measured slippage
 python -m listingbot.cli export    # CSV dump of every table
 python -m listingbot.cli publish   # regenerate docs/monitor.html and git push it
 ```
@@ -125,21 +148,25 @@ the third; the page carries `noindex` so it will not turn up in search results.
 
 At roughly 5 listings a month:
 
-| if the true edge is | events for t = 2.0 | months |
+| if the true mean is | events for t = 2.24 | months |
 |---|---|---|
-| the honest +2.71% | 117 | 23 |
-| the tuned +4.86% | 36 | 7 |
-| the best cohort +8.68% | 11 | 2 |
+| +2.71%, the t12 backtest | 146 | 29 |
+| +4.86%, the t18 backtest | 45 | 9 |
 
-**Three months is about 15 events and cannot confirm anything** — the mean would carry a
-±3.8pp error bar. What it can do is detect a broken strategy: if the true win rate is 63%,
-there is only a 3.5% chance of observing 40% or worse across 15 trades.
+**Three months is about 15 events per arm and cannot confirm anything** — the mean would
+carry a ±3.8pp error bar. What it can do is detect a broken strategy: if the true win rate
+is 63%, there is only a 3.5% chance of observing 40% or worse across 15 trades.
 
-**Pre-agreed stop signal: a win rate at or below 40% after 15 closed trades.**
+**Pre-agreed stop signal, per arm: a win rate at or below 40% after 15 closed trades.**
+
+The paired comparison converges faster than either arm alone, because pairing removes the
+between-listing variance — the same reason the backtest's own 115-listing comparison
+stalled at t 1.50 while the unpaired means looked far apart.
 
 ## What is still wrong with the underlying research
 
-- no clean holdout exists for the fixed-target rule
+- no clean holdout exists for either arm's backtest; forward data is the only clean test
+- the entry hour is the open question, not a settled parameter
 - four measurement bugs were found during the work and **every fix helped the result** —
   each was independently demonstrable, but a run of favourable errors suggests the
   undiscovered ones are probably favourable too

@@ -1,10 +1,18 @@
-"""The tick: detect listings, open paper shorts at T+12h, manage them to exit.
+"""The tick: detect listings, open paper shorts for each arm at its entry hour, manage
+them to exit.
+
+TWO ARMS run side by side (see PREREG_ARMS.md): t12 enters at T+12h, t18 at T+18h, each
+with its own separate 1,000 USDT book. A listing is usually traded by both, and that is
+the point — the arms are compared pairwise on the same listings, which is what removes the
+between-listing variance that left the backtest comparison at t 1.50.
 
 Deliberate properties, each one a lesson from the research:
 
   * the anchor is the first traded HOUR, never midnight of the listing day
   * eligibility requires a perp by the entry hour, and that is a rule not a filter —
-    you cannot short what has no perpetual
+    you cannot short what has no perpetual. It is therefore PER ARM: a perp appearing at
+    +15h is tradeable by t18 and not by t12, and half the fall from $6,180 to $2,269 in
+    the research came from getting exactly that wrong
   * both fills walk the live order book, so slippage is measured rather than assumed
   * funding is fetched per contract and signed correctly: a short RECEIVES a positive rate
   * the stop is enforced before the target on every check, and a 1x short is force-closed
@@ -23,6 +31,41 @@ log = logging.getLogger("listingbot")
 
 def _hours(ms):
     return ms / 3_600_000.0
+
+
+def plan_arms(cx, e):
+    """Decide, per arm, whether this listing is tradeable and when.
+
+    Called from the scan and again from the recheck, because a perp arriving later can
+    turn a skip into a trade for the later arm only.
+    """
+    listed_ms, gap_h = e["listed_ms"], e["gap_hours"]
+    venue, psym = e["perp_venue"], e["perp_symbol"]
+    for arm in C.ARM_IDS:
+        h = C.arm_entry_hours(arm)
+        if listed_ms is None:
+            store.set_plan(cx, e["id"], arm, eligible=0, entry_due_ms=None,
+                           status="watching",
+                           ineligible_reason="no kline yet; re-checked on a later run")
+            continue
+        due = listed_ms + h * 3_600_000
+        if psym is None:
+            store.set_plan(cx, e["id"], arm, eligible=0, entry_due_ms=due,
+                           status="watching",
+                           ineligible_reason="no perpetual on Gate, OKX or KuCoin yet")
+        elif venue != "gate":
+            store.set_plan(cx, e["id"], arm, eligible=0, entry_due_ms=due,
+                           status="skipped",
+                           ineligible_reason=f"perp is on {venue}; paper fills are "
+                                             f"priced on Gate's book only")
+        elif gap_h is not None and gap_h > C.arm_perp_by_hours(arm):
+            store.set_plan(cx, e["id"], arm, eligible=0, entry_due_ms=due,
+                           status="skipped",
+                           ineligible_reason=f"perp arrived {gap_h:+.1f}h after the "
+                                             f"listing, after this arm's T+{h}h entry")
+        else:
+            store.set_plan(cx, e["id"], arm, eligible=1, entry_due_ms=due,
+                           status="watching", ineligible_reason=None)
 
 
 def scan_new_listings(cx):
@@ -44,46 +87,36 @@ def scan_new_listings(cx):
         listed_ms = venues.binance_first_hour_ms(sym)
         detected = store.now_ms()
         perp = pi.get(base.upper())
-        gap_h = None
-        eligible, reason, entry_due, status = 0, None, None, "watching"
-
-        if listed_ms is None:
-            reason = "no kline yet; will re-check on a later run"
-            status = "pending_perp"
-        else:
-            entry_due = listed_ms + C.ENTRY_HOURS * 3_600_000
-            if perp is None:
-                reason = ("no perpetual on Gate, OKX or KuCoin — usually a stablecoin, "
-                          "liquid-staking token or tokenised equity")
-                status = "pending_perp"
-            else:
-                gap_h = _hours(perp["launch_ms"] - listed_ms)
-                if gap_h > C.PERP_MUST_EXIST_BY_HOURS:
-                    reason = (f"perp arrived {gap_h:.1f}h after the listing, later than "
-                              f"the T+{C.ENTRY_HOURS}h entry")
-                    status = "skipped"
-                elif perp["venue"] != "gate":
-                    reason = (f"perp is on {perp['venue']}, and paper fills are priced "
-                              f"on Gate's book only")
-                    status = "skipped"
-                else:
-                    eligible = 1
-
-        store.add_event(
+        gap_h = (_hours(perp["launch_ms"] - listed_ms)
+                 if perp and listed_ms is not None else None)
+        # The event row holds only what is true of the listing itself. Whether it is
+        # tradeable, and when, differs per arm and lives in arm_plans.
+        waiting = listed_ms is None or perp is None
+        eid = store.add_event(
             cx, symbol=sym, base=base, listed_ms=listed_ms, detected_ms=detected,
             perp_venue=(perp or {}).get("venue"),
             perp_symbol=(perp or {}).get("symbol"),
             perp_launch_ms=(perp or {}).get("launch_ms"),
-            gap_hours=gap_h, eligible=eligible, ineligible_reason=reason,
-            entry_due_ms=entry_due, status=status)
+            gap_hours=gap_h, eligible=0,
+            status="pending_perp" if waiting else "watching")
+        if eid:
+            plan_arms(cx, cx.execute("SELECT * FROM events WHERE id=?",
+                                     (eid,)).fetchone())
+            plans = store.plans_for(cx, eid)
+            log.info("NEW %s (%s) perp=%s gap=%s  %s", sym, base,
+                     (perp or {}).get("symbol", "none"),
+                     "?" if gap_h is None else f"{gap_h:+.1f}h",
+                     "  ".join(f"{a}={'yes' if plans[a]['eligible'] else 'no'}"
+                               for a in C.ARM_IDS if a in plans))
         added += 1
-        log.info("NEW %s (%s) listed=%s perp=%s gap=%s eligible=%s %s",
-                 sym, base,
-                 "?" if listed_ms is None else f"{listed_ms}",
-                 (perp or {}).get("symbol", "none"),
-                 "?" if gap_h is None else f"{gap_h:+.1f}h",
-                 eligible, reason or "")
     return added
+
+
+def replan_orphans(cx):
+    """Build arm plans for events that predate them, or that a migration flagged."""
+    for e in store.events_needing_plans(cx):
+        plan_arms(cx, e)
+        log.info("built arm plans for %s", e["symbol"])
 
 
 def recheck_pending(cx):
@@ -104,66 +137,67 @@ def recheck_pending(cx):
         if perp is None:
             continue
         gap_h = _hours(perp["launch_ms"] - listed_ms)
-        if gap_h <= C.PERP_MUST_EXIST_BY_HOURS and perp["venue"] == "gate":
-            cx.execute(
-                "UPDATE events SET perp_venue=?,perp_symbol=?,perp_launch_ms=?,"
-                "gap_hours=?,eligible=1,ineligible_reason=NULL,status='watching' "
-                "WHERE id=?",
-                (perp["venue"], perp["symbol"], perp["launch_ms"], gap_h, e["id"]))
-            log.info("%s became eligible: perp %s at %+.1fh",
-                     e["symbol"], perp["symbol"], gap_h)
-        else:
-            cx.execute(
-                "UPDATE events SET perp_venue=?,perp_symbol=?,perp_launch_ms=?,"
-                "gap_hours=?,status='skipped',ineligible_reason=? WHERE id=?",
-                (perp["venue"], perp["symbol"], perp["launch_ms"], gap_h,
-                 f"perp on {perp['venue']} at {gap_h:+.1f}h", e["id"]))
+        cx.execute("UPDATE events SET perp_venue=?,perp_symbol=?,perp_launch_ms=?,"
+                   "gap_hours=?,status='watching' WHERE id=?",
+                   (perp["venue"], perp["symbol"], perp["launch_ms"], gap_h, e["id"]))
+        cx.commit()
+        fresh = cx.execute("SELECT * FROM events WHERE id=?", (e["id"],)).fetchone()
+        plan_arms(cx, fresh)
+        plans = store.plans_for(cx, e["id"])
+        elig = [a for a in C.ARM_IDS if plans.get(a, {})["eligible"]]
+        log.info("%s: perp %s at %+.1fh — eligible for %s",
+                 e["symbol"], perp["symbol"], gap_h,
+                 ", ".join(elig) if elig else "no arm")
     cx.commit()
 
 
 def open_due_positions(cx):
+    """One position per (listing, arm) whose entry hour has arrived.
+
+    Each arm sizes against its OWN book, so a drawdown in one cannot shrink the other's
+    positions and the two return series stay independently comparable.
+    """
     ts = store.now_ms()
     opened = 0
-    for e in store.events_awaiting_entry(cx, ts):
+    for e in store.plans_awaiting_entry(cx, ts):
+        arm = e["arm"]
         late_h = _hours(ts - e["entry_due_ms"])
         if late_h > 2.0:
-            cx.execute("UPDATE events SET status='missed',ineligible_reason=? WHERE id=?",
-                       (f"entry window missed by {late_h:.1f}h", e["id"]))
-            log.warning("%s: entry missed by %.1fh — not chasing it",
-                        e["symbol"], late_h)
+            store.set_plan(cx, e["id"], arm, status="missed",
+                           ineligible_reason=f"entry window missed by {late_h:.1f}h")
+            log.warning("%s/%s: entry missed by %.1fh — not chasing it",
+                        e["symbol"], arm, late_h)
             continue
 
-        equity = store.get_equity(cx)
-        notional = equity * C.POSITION_PCT
-        q, err = fills.quote(e["perp_symbol"], "sell", notional)
+        equity = store.get_equity(cx, arm)
+        q, err = fills.quote(e["perp_symbol"], "sell", equity * C.POSITION_PCT)
         if q is None:
-            log.warning("%s: cannot open — %s", e["symbol"], err)
-            cx.execute("UPDATE events SET status='skipped',ineligible_reason=? WHERE id=?",
-                       (f"entry fill impossible: {err}", e["id"]))
-            cx.commit()
+            log.warning("%s/%s: cannot open — %s", e["symbol"], arm, err)
+            store.set_plan(cx, e["id"], arm, status="skipped",
+                           ineligible_reason=f"entry fill impossible: {err}")
             continue
 
         entry = q["vwap"]
         pid_cur = cx.execute(
-            "INSERT INTO positions(event_id,base,perp_symbol,opened_ms,entry_vwap,"
+            "INSERT INTO positions(event_id,arm,base,perp_symbol,opened_ms,entry_vwap,"
             "entry_mid,entry_slippage_bps,entry_spread_bps,entry_fee_usdt,notional_usdt,"
             "equity_at_open,tp_price,sl_price,deadline_ms) "
-            "VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
-            (e["id"], e["base"], e["perp_symbol"], ts, entry, q["mid"],
+            "VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+            (e["id"], arm, e["base"], e["perp_symbol"], ts, entry, q["mid"],
              q["slippage_bps"], q["spread_bps"], q["fee_usdt"], q["notional_usdt"],
              equity, entry * (1 - C.TAKE_PROFIT), entry * (1 + C.STOP_LOSS),
              ts + C.MAX_HOLD_HOURS * 3_600_000))
         pid = pid_cur.lastrowid
         cx.execute("INSERT INTO fills(position_id,ts_ms,kind,detail_json) VALUES(?,?,?,?)",
                    (pid, ts, "entry", json.dumps(q)))
-        cx.execute("UPDATE events SET status='traded' WHERE id=?", (e["id"],))
         cx.commit()
+        store.set_plan(cx, e["id"], arm, status="traded")
         opened += 1
-        log.info("OPEN short %s @ %.8g (mid %.8g, slip %.1fbps, spread %.1fbps, "
-                 "%d levels) notional %.2f TP %.8g SL %.8g",
-                 e["perp_symbol"], entry, q["mid"], q["slippage_bps"],
+        log.info("OPEN %s short %s @ %.8g (mid %.8g, slip %.1fbps, spread %.1fbps, "
+                 "%d levels) notional %.2f TP %.8g SL %.8g  book %.2f",
+                 arm, e["perp_symbol"], entry, q["mid"], q["slippage_bps"],
                  q["spread_bps"] or -1, q["levels_consumed"], q["notional_usdt"],
-                 entry * (1 - C.TAKE_PROFIT), entry * (1 + C.STOP_LOSS))
+                 entry * (1 - C.TAKE_PROFIT), entry * (1 + C.STOP_LOSS), equity)
     return opened
 
 
@@ -187,12 +221,13 @@ def _close(cx, p, reason, ts):
          gross * 100, net * 100, pnl, p["id"]))
     cx.execute("INSERT INTO fills(position_id,ts_ms,kind,detail_json) VALUES(?,?,?,?)",
                (p["id"], ts, "exit", json.dumps(q)))
-    store.set_equity(cx, store.get_equity(cx) + pnl)
+    arm = p["arm"]
+    store.set_equity(cx, arm, store.get_equity(cx, arm) + pnl)
     cx.commit()
-    log.info("CLOSE %s %s @ %.8g  gross %+.2f%% fee %-.2f%% funding %+.3f%% "
-             "net %+.2f%%  pnl %+.2f USDT  equity %.2f",
-             p["perp_symbol"], reason, exit_vwap, gross * 100, fee_frac * 100,
-             fr * 100, net * 100, pnl, store.get_equity(cx))
+    log.info("CLOSE %s %s %s @ %.8g  gross %+.2f%% fee %-.2f%% funding %+.3f%% "
+             "net %+.2f%%  pnl %+.2f USDT  book %.2f",
+             arm, p["perp_symbol"], reason, exit_vwap, gross * 100, fee_frac * 100,
+             fr * 100, net * 100, pnl, store.get_equity(cx, arm))
     return True
 
 
@@ -236,6 +271,9 @@ def expire_stale(cx):
     ts = store.now_ms()
     for e in store.stale_events(cx, ts, C.EVENT_TRACK_DAYS):
         cx.execute("UPDATE events SET status='expired' WHERE id=?", (e["id"],))
+        cx.execute("UPDATE arm_plans SET status='expired',ineligible_reason="
+                   "COALESCE(ineligible_reason,'no perp within the tracking window') "
+                   "WHERE event_id=? AND status='watching'", (e["id"],))
     cx.commit()
 
 
@@ -243,6 +281,7 @@ def tick(cx):
     errors = []
     new = opened = closed = 0
     for label, fn in (("scan", lambda: scan_new_listings(cx)),
+                      ("replan", lambda: replan_orphans(cx)),
                       ("recheck", lambda: recheck_pending(cx)),
                       ("open", lambda: open_due_positions(cx)),
                       ("manage", lambda: manage_open_positions(cx)),
