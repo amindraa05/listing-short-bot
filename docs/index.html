@@ -2,9 +2,9 @@
 <html lang="en"><head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<meta name="description" content="Shorting the Binance listing pump: the one surviving
-hypothesis of roughly three thousand tested — and the out-of-sample replication on Bybit
-listings that refuted it.">
+<meta name="description" content="Shorting the new-listing pump: the one hypothesis of ~3000
+that survived its own backtest, and the 92-event out-of-sample replication across four
+exchanges that refuted it.">
 <title>Listing-Short Research — Honest Findings</title>
 <style>
 :root {
@@ -140,6 +140,14 @@ footer { border-top:1px solid var(--line); padding-top:16px; font-family:var(--m
   letter-spacing:0.1em; text-transform:uppercase; color:var(--bad); font-weight:700; }
 .refuted p { margin:0 0 10px; max-width:76ch; }
 .refuted p:last-child { margin-bottom:0; }
+.refutab { width:100%; border-collapse:collapse; font-family:var(--mono);
+  font-size:0.78rem; margin:4px 0 14px; font-variant-numeric:tabular-nums; }
+.refutab th { text-align:left; font-size:0.64rem; letter-spacing:0.08em;
+  text-transform:uppercase; color:var(--muted); padding:6px 10px 6px 0;
+  border-bottom:1px solid var(--line); font-weight:600; }
+.refutab td { padding:5px 10px 5px 0; border-bottom:1px solid var(--line);
+  white-space:nowrap; }
+.refutab tr:last-child td { border-bottom:0; }
 @media (prefers-reduced-motion:reduce) { * { transition:none !important; } }
 </style>
 </head><body>
@@ -155,22 +163,38 @@ footer { border-top:1px solid var(--line); padding-top:16px; font-family:var(--m
   actually shorted, with fees, spread, gap-through fills and the liquidation rule applied.</p>
 
   <div class="refuted">
-    <h3>Out-of-sample replication, 2026-07-28: this failed</h3>
-    <p>The rule below was run unchanged against <strong>39 new Bybit spot listings the study
-    had never touched</strong>, pre-registered before the run. Result: mean
-    <strong>&minus;3.72%</strong>, median <strong>&minus;15.32%</strong>, win rate
-    <strong>38.5%</strong>. The modal trade did not weaken, it <em>inverted</em> &mdash; the
-    typical outcome went from hitting the 15% target to hitting the 15% stop. If the true
-    mean were the +1.99% this study measured on spot-priced events, a result this bad has a
-    0.55% chance of occurring.</p>
-    <p>The same run reproduced <strong>+2.06%</strong> on the 69 tokens that <em>were</em> in
-    this study. Present on the tokens the study used, absent on tokens it never saw. That is
-    the signature of a sample-specific result, not a mechanism.</p>
-    <p>What survives is only the narrower claim that <strong>Binance</strong> listings
-    specifically behave this way &mdash; and that claim now has no clean evidence behind it
-    at all, because this was the replication. Everything below stands as the record of what
-    the Binance sample showed. <a href="https://github.com/amindraa05/listing-short-bot/blob/main/PREREG_BYBIT.md">Full
-    pre-registration and result &rarr;</a></p>
+    <h3>Out-of-sample replication, 2026-07-28: refuted</h3>
+    <p>The rule below was run unchanged against <strong>92 new spot listings across Bybit,
+    OKX, KuCoin and Gate</strong> &mdash; tokens never listed on Binance at all, so never seen
+    by this study. Both entry arms were pre-registered before the run.</p>
+    <table class="refutab"><thead><tr><th>sample</th><th>n</th><th>mean</th><th>median</th>
+    <th>win</th><th>t</th></tr></thead><tbody>
+    <tr><td>this study, Binance listings</td><td>115</td><td class="pos">+2.71%</td>
+      <td class="pos">+14.77%</td><td>62.6%</td><td>+1.99</td></tr>
+    <tr><td>pooled fresh, T+12h</td><td>92</td><td class="neg">&minus;2.65%</td>
+      <td class="neg">&minus;15.32%</td><td>43.5%</td><td>&minus;1.80</td></tr>
+    <tr><td>pooled fresh, T+18h</td><td>93</td><td class="neg">&minus;3.27%</td>
+      <td class="neg">&minus;15.32%</td><td>40.9%</td><td>&minus;2.24</td></tr>
+    </tbody></table>
+    <p><strong>The mechanism inverted rather than weakened.</strong> In this study the take
+    profit fired more often than the stop, 61 to 39. In the pool the stop fires more often,
+    49 to 33, the median trade runs <strong>22% against</strong> a short before resolving, and
+    16% of events would have liquidated a 1&times; position outright. These tokens pump and
+    keep going. If the true mean were the +1.99% this study measured on spot-priced events, a
+    pooled result this bad has a <strong>0.08%</strong> chance of occurring.</p>
+    <p>Every robustness split agrees: both time halves negative, all four pricing venues
+    negative, single-venue tokens worst at &minus;4.99%.</p>
+    <p>What survives is only the narrower claim that <strong>Binance</strong> listings behave
+    differently &mdash; and the two samples do differ by 5.36pp at t 2.67, so that is not an
+    empty claim. But it now has <strong>no clean supporting evidence at all</strong>, and the
+    competing explanation is simply that the result below was the artefact: it never cleared
+    its own bar of 3.55, had no clean holdout, and four measurement bugs were found in it
+    which all happened to flatter it. Everything below stands as the record of what the
+    Binance sample showed, not as a claim about the world.
+    <a href="https://github.com/amindraa05/listing-short-bot/blob/main/PREREG_POOL.md">Pooled
+    pre-registration and result &rarr;</a> &middot;
+    <a href="https://github.com/amindraa05/listing-short-bot/blob/main/PREREG_BYBIT.md">the
+    first Bybit run &rarr;</a></p>
   </div>
 
   <p class="livelink"><a href="monitor.html">Live paper-trade monitor &rarr;</a>
