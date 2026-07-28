@@ -31,7 +31,44 @@ There is also **no clean holdout left**: all 115 events were used to sweep the e
 pick the exits and repair filters. Forward data is the only uncontaminated evidence that
 remains, and collecting it is the entire purpose of this bot.
 
-## Two arms
+## Four arms, three venues
+
+Five pre-registered out-of-sample replications put this effect on **large-audience venues and
+not on small ones**: +3.46% per trade across 111 clean Coinbase and Upbit events at t 3.03,
+against −2.65% across 92 fresh tokens on four smaller venues. On Upbit the listing hour itself
+is worth +4.94pp at t 2.93 against a placebo of the same tokens on arbitrary dates. **It sits on
+its significance bar, not past it** — clearing 2.73 if eight configurations are charged for and
+failing 3.05 if twenty are.
+
+So the forward test now listens to three venues, which takes the signal rate from 58 a year to
+116. Full reasoning in **[PREREG_VENUES.md](PREREG_VENUES.md)**, written before the new arms
+traded anything.
+
+```
+arm    signal venue   entry   backtest (out-of-sample where clean)
+t12    Binance        T+12h   +2.71%  t 1.99  n 115   in-sample, not evidence
+t18    Binance        T+18h   +4.86%  t 4.03  n 134   swept; failed to replicate
+cb12   Coinbase       T+12h   +2.76%  t 1.64  n 48    clean
+up12   Upbit          T+12h   +3.99%  t 2.55  n 63    clean, placebo-controlled
+```
+
+**Execution is identical on every arm: a Gate USDT perpetual.** The venue supplies the listing
+timestamp and nothing else — which is what removed the FX objection from the Korean data, since
+a KRW price path would have measured the won as well as the token.
+
+**The anchor is each venue's own first traded hour, never midnight.** Coinbase lists at a median
+17:00 UTC, Upbit at a median 7h past midnight. Three separate midnight-anchor bugs have been
+found in this project, the most recent manufacturing a +5.91% Upbit result at t 5.76 that had to
+be withdrawn, so the monitor publishes the measured offset per venue and a recurrence is visible.
+
+**The concurrency cap lives in reporting, not collection.** A cap of 1 measured better than 2 on
+the clean history — +64.4% CAGR at 11.2% drawdown against +59.9% at 19.0%, because simultaneous
+shorts on new listings are correlated and a second position is leverage, not diversification —
+but a cap discards events, and Amendment 1 established that a gate may size down and must never
+skip. Every arm therefore takes every eligible listing, and the monitor computes the cap-1
+portfolio from the record.
+
+## The original two arms
 
 The backtest could not settle its own central question — whether the entry belongs at
 T+12h or T+18h — so both run forward, side by side, each on its own book. Full reasoning

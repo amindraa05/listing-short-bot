@@ -7,6 +7,7 @@ is written so that it could not become live by accident.
 """
 import json
 import time
+import time
 import urllib.error
 import urllib.parse
 import urllib.request
@@ -58,6 +59,109 @@ def binance_first_hour_ms(symbol):
 
 
 # ---------------------------------------------------------------------- Gate
+# How far back a just-detected listing's first hour is searched for. The bot polls every
+# five minutes, so a genuine new listing is always well inside this; the window exists to
+# bound the request, not to find old listings.
+LISTING_LOOKBACK_H = 72
+
+
+# --------------------------------------------------------------------------- Coinbase
+def coinbase_usd_products():
+    """Online USD/USDC products, one entry per base currency, USD preferred."""
+    d = _get(f"{C.COINBASE_EXCHANGE}/products")
+    out = {}
+    for x in (d or []):
+        if (x.get("status") != "online" or x.get("trading_disabled")
+                or x.get("quote_currency") not in ("USD", "USDC")):
+            continue
+        b = (x.get("base_currency") or "").upper()
+        if not b:
+            continue
+        if b not in out or x["quote_currency"] == "USD":
+            out[b] = x["id"]
+    return out
+
+
+def coinbase_first_hour_ms(product, lookback_h=LISTING_LOOKBACK_H):
+    """First traded HOUR of a product the scan has just detected as NEW.
+
+    Coinbase lists in the afternoon — measured median first hour 17:00 UTC — so a midnight
+    anchor is wrong by most of a day, and on the historical run that mistake cost the
+    T+12h arm 91 of 102 events.
+
+    PRECONDITION: the caller has already established that this product is new, by diffing
+    the product list. Given that, the earliest hourly candle inside a recent window IS the
+    first traded hour. Without that precondition the answer would be meaningless, because
+    Coinbase's candle endpoint returns the most RECENT window when no range is given — the
+    first version of this function did exactly that and reported "300 days ago" as the
+    listing hour for two unrelated products.
+
+    Returns None rather than a guess when the earliest candle sits at the edge of the
+    window, since then the true first hour may be older and cannot be distinguished.
+    """
+    now = int(time.time())
+    start = now - lookback_h * 3600
+    h = _get(f"{C.COINBASE_EXCHANGE}/products/{product}/candles?granularity=3600"
+             f"&start={_iso(start)}&end={_iso(now)}")
+    if not isinstance(h, list) or not h:
+        return None
+    first = min(int(x[0]) for x in h)
+    if first <= start + 3600:          # touching the edge: cannot tell it is the first
+        return None
+    return first * 1000
+
+
+# --------------------------------------------------------------------------- Upbit
+def upbit_markets():
+    """KRW and USDT markets, one per token, KRW preferred as the retail signal."""
+    d = _get(f"{C.UPBIT}/market/all?isDetails=true")
+    out = {}
+    for x in (d or []):
+        m = x.get("market", "")
+        if not (m.startswith("KRW-") or m.startswith("USDT-")):
+            continue
+        b = m.split("-", 1)[1].upper()
+        if b not in out or m.startswith("KRW-"):
+            out[b] = m
+    return out
+
+
+def upbit_first_hour_ms(market, lookback_h=LISTING_LOOKBACK_H):
+    """First traded HOUR on Upbit, for a market the scan has just detected as NEW.
+
+    Upbit lists in the Korean afternoon, a measured median 7 hours past midnight UTC.
+    Anchoring on midnight there manufactured a +5.91% result at t 5.76 in the historical
+    run, which had to be withdrawn — the third midnight-anchor bug in this project.
+
+    Same precondition and same refusal as the Coinbase version: Upbit's candle endpoints
+    also return the most recent N candles when no range is given, so the earliest one is
+    only the listing hour if the market really is new.
+    """
+    n = min(200, max(4, lookback_h))
+    d = _get(f"{C.UPBIT}/candles/minutes/60?market={market}&count={n}")
+    if not d:
+        return None
+    hrs = sorted(t for t in (_upbit_ts(x) for x in d) if t)
+    if not hrs:
+        return None
+    edge = (time.time() - n * 3600) * 1000
+    if hrs[0] <= edge + 3600_000:      # touching the edge: may not be the first hour
+        return None
+    return hrs[0]
+
+
+def _upbit_ts(x):
+    try:
+        return int(time.mktime(time.strptime(
+            x["candle_date_time_utc"], "%Y-%m-%dT%H:%M:%S"))) * 1000
+    except (KeyError, TypeError, ValueError):
+        return None
+
+
+def _iso(ts):
+    return time.strftime("%Y-%m-%dT%H:%M:%S", time.gmtime(ts))
+
+
 def gate_contracts():
     """[{name, create_time_ms, quanto_multiplier, ...}] for USDT perps."""
     d = _get(f"{C.GATE_FUTURES}/contracts")

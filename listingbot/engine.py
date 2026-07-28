@@ -1,5 +1,15 @@
-"""The tick: detect listings, open paper shorts for each arm at its entry hour, manage
-them to exit.
+"""The tick: detect listings on three venues, open paper shorts for each arm at its entry
+hour, manage them to exit.
+
+FOUR ARMS on separate books (see PREREG_VENUES.md): t12 and t18 on Binance listings, cb12
+on Coinbase, up12 on Upbit. Every arm executes the same way — a Gate USDT perpetual — so
+the venue supplies the listing timestamp and nothing else. That is what removed the FX
+objection from the Korean data: a KRW price path would have measured the won too.
+
+NO CONCURRENCY CAP is applied here. Amendment 1 of PREREG_ARMS.md established that a gate
+may size down and must never skip, because skipping removes sample points and biases the
+test. The cap of 1 the evidence favours is applied in the REPORT, computed from the
+recorded trades.
 
 TWO ARMS run side by side (see PREREG_ARMS.md): t12 enters at T+12h, t18 at T+18h, each
 with its own separate 1,000 USDT book. A listing is usually traded by both, and that is
@@ -45,7 +55,8 @@ def plan_arms(cx, e):
     """
     listed_ms, gap_h = e["listed_ms"], e["gap_hours"]
     venue, psym = e["perp_venue"], e["perp_symbol"]
-    for arm in C.ARM_IDS:
+    sig = e["signal_venue"] if "signal_venue" in e.keys() else "binance"
+    for arm in C.arms_for(sig):
         h = C.arm_entry_hours(arm)
         if listed_ms is None:
             store.set_plan(cx, e["id"], arm, eligible=0, entry_due_ms=None,
@@ -72,15 +83,44 @@ def plan_arms(cx, e):
                            status="watching", ineligible_reason=None)
 
 
+VENUE_UNIVERSE = {
+    "binance": lambda: venues.binance_usdt_symbols(),
+    "coinbase": lambda: {p: b for b, p in
+                         (venues.coinbase_usd_products() or {}).items()},
+    "upbit": lambda: {m: b for b, m in (venues.upbit_markets() or {}).items()},
+}
+
+# The anchor is the venue's OWN first traded hour. Three separate midnight-anchor bugs
+# have been found in this project; the most recent manufactured a +5.91% result at t 5.76
+# on Upbit that had to be withdrawn. Coinbase lists at a median 17:00 UTC and Upbit at a
+# median 7h past midnight, so a shared convention would be wrong on both.
+VENUE_ANCHOR = {
+    "binance": venues.binance_first_hour_ms,
+    "coinbase": venues.coinbase_first_hour_ms,
+    "upbit": venues.upbit_first_hour_ms,
+}
+
+
 def scan_new_listings(cx):
-    """Diff Binance's USDT universe, then classify each genuinely new symbol."""
-    symbols = venues.binance_usdt_symbols()
+    """Diff every signal venue independently and classify each genuinely new symbol."""
+    total = 0
+    for sig in C.SIGNAL_VENUES:
+        try:
+            total += _scan_venue(cx, sig)
+        except Exception as e:                                  # noqa: BLE001
+            log.exception("scan failed for %s", sig)
+            raise
+    return total
+
+
+def _scan_venue(cx, sig):
+    symbols = VENUE_UNIVERSE[sig]()
     if not symbols:
-        log.warning("Binance returned no symbols; skipping scan")
+        log.warning("%s returned no symbols; skipping its scan", sig)
         return 0
-    new, gone = store.diff_symbols(cx, symbols)
+    new, gone = store.diff_symbols(cx, symbols, sig)
     if gone:
-        log.info("delisted since last run: %s", ", ".join(gone))
+        log.info("%s delisted since last run: %s", sig, ", ".join(gone[:12]))
     if not new:
         return 0
 
@@ -88,7 +128,7 @@ def scan_new_listings(cx):
     added = 0
     for sym in new:
         base = symbols[sym]
-        listed_ms = venues.binance_first_hour_ms(sym)
+        listed_ms = VENUE_ANCHOR[sig](sym)
         detected = store.now_ms()
         perp = pi.get(base.upper())
         gap_h = (_hours(perp["launch_ms"] - listed_ms)
@@ -97,7 +137,8 @@ def scan_new_listings(cx):
         # tradeable, and when, differs per arm and lives in arm_plans.
         waiting = listed_ms is None or perp is None
         eid = store.add_event(
-            cx, symbol=sym, base=base, listed_ms=listed_ms, detected_ms=detected,
+            cx, signal_venue=sig, symbol=sym, base=base, listed_ms=listed_ms,
+            detected_ms=detected,
             perp_venue=(perp or {}).get("venue"),
             perp_symbol=(perp or {}).get("symbol"),
             perp_launch_ms=(perp or {}).get("launch_ms"),
@@ -107,7 +148,7 @@ def scan_new_listings(cx):
             plan_arms(cx, cx.execute("SELECT * FROM events WHERE id=?",
                                      (eid,)).fetchone())
             plans = store.plans_for(cx, eid)
-            log.info("NEW %s (%s) perp=%s gap=%s  %s", sym, base,
+            log.info("NEW %s %s (%s) perp=%s gap=%s  %s", sig, sym, base,
                      (perp or {}).get("symbol", "none"),
                      "?" if gap_h is None else f"{gap_h:+.1f}h",
                      "  ".join(f"{a}={'yes' if plans[a]['eligible'] else 'no'}"
@@ -132,11 +173,12 @@ def recheck_pending(cx):
     for e in rows:
         listed_ms = e["listed_ms"]
         if listed_ms is None:
-            listed_ms = venues.binance_first_hour_ms(e["symbol"])
+            sig = e["signal_venue"] if "signal_venue" in e.keys() else "binance"
+            listed_ms = VENUE_ANCHOR[sig](e["symbol"])
             if listed_ms is None:
                 continue
-            cx.execute("UPDATE events SET listed_ms=?, entry_due_ms=? WHERE id=?",
-                       (listed_ms, listed_ms + C.ENTRY_HOURS * 3_600_000, e["id"]))
+            cx.execute("UPDATE events SET listed_ms=? WHERE id=?",
+                       (listed_ms, e["id"]))
         perp = pi.get(e["base"].upper())
         if perp is None:
             continue

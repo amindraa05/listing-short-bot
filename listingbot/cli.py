@@ -16,7 +16,7 @@ import time
 from . import config as C
 from . import engine, report, store
 
-BAR = 2.2426          # 2.0 + 0.35*ln(2), for the two pre-declared arms
+BAR = 2.4854          # 2.0 + 0.35*ln(4), for the four pre-declared arms
 
 
 def _log(verbose=False):
@@ -63,12 +63,18 @@ def cmd_status(args):
     openp = store.open_positions(cx)
 
     print("=" * 90)
-    print("  LISTING-SHORT PAPER TEST — two arms, separate books")
+    print(f"  LISTING-SHORT PAPER TEST — {len(C.ARM_IDS)} arms on "
+          f"{len(C.SIGNAL_VENUES)} venues, separate books")
     print("=" * 90)
     print(f"  running for   {days:.1f} days")
     print(f"  shared        TP {C.TAKE_PROFIT*100:.0f}%  SL {C.STOP_LOSS*100:.0f}%  "
           f"hold {C.MAX_HOLD_HOURS}h  size {C.POSITION_PCT*100:.0f}% of the arm's book")
-    print(f"  bar           t {BAR:.2f}  (2.0 + 0.35*ln(2), two pre-declared arms)")
+    print(f"  bar           t {BAR:.2f}  (2.0 + 0.35*ln({len(C.ARM_IDS)}), "
+          f"{len(C.ARM_IDS)} pre-declared arms)")
+    print(f"  signal venues " + "  ".join(
+        f"{v}:{','.join(C.arms_for(v))}" for v in C.SIGNAL_VENUES))
+    print("  execution     Gate USDT perpetual on every arm; the venue supplies only the "
+          "listing hour")
 
     for a in C.ARM_IDS:
         cfg = C.ARMS[a]
@@ -77,7 +83,7 @@ def cmd_status(args):
         eq = store.get_equity(cx, a)
         opn = [r for r in openp if r["arm"] == a]
         print()
-        print(f"  [{a}] {cfg['label']} — {cfg['note']}")
+        print(f"  [{a}] {cfg['label']} ({C.arm_venue(a)}) — {cfg['note']}")
         print(f"      book              {eq:,.2f} {C.CURRENCY} "
               f"({(eq/C.PAPER_START_EQUITY-1)*100:+.2f}% from "
               f"{C.PAPER_START_EQUITY:,.0f})")
@@ -141,9 +147,9 @@ def cmd_status(args):
                   f"{p['tp_price']:12.8g} {p['sl_price']:12.8g} {age:6.1f}h "
                   f"{p['mae_pct']:+7.1f}%")
     print("=" * 90)
-    print("  Neither arm is a confirmed edge. t12 failed the backtest's own bar of 3.55;")
-    print("  t18 cleared it but was the product of a ten-hour sweep. PREREG_ARMS.md")
-    print("  freezes both, and neither may be dropped once trades exist.")
+    print("  No arm is a confirmed edge. The pooled clean out-of-sample estimate is")
+    print("  +3.46% on 111 events at t 3.03, which SITS ON its bar rather than past it.")
+    print("  PREREG_ARMS.md and PREREG_VENUES.md freeze all four; none may be dropped.")
     print("=" * 90)
     return 0
 

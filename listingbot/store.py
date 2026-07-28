@@ -18,15 +18,18 @@ CREATE TABLE IF NOT EXISTS meta (
   value TEXT NOT NULL
 );
 
--- snapshot of Binance USDT symbols, used to diff for new listings
+-- snapshot of each signal venue's tradeable symbols, diffed to find new listings
 CREATE TABLE IF NOT EXISTS known_symbols (
-  symbol TEXT PRIMARY KEY,
+  venue TEXT NOT NULL DEFAULT 'binance',
+  symbol TEXT NOT NULL,
   base TEXT NOT NULL,
-  first_seen_ms INTEGER NOT NULL
+  first_seen_ms INTEGER NOT NULL,
+  PRIMARY KEY (venue, symbol)
 );
 
 CREATE TABLE IF NOT EXISTS events (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
+  signal_venue TEXT NOT NULL DEFAULT 'binance',
   symbol TEXT NOT NULL UNIQUE,
   base TEXT NOT NULL,
   listed_ms INTEGER,             -- first traded HOUR on Binance spot
@@ -142,6 +145,26 @@ def _migrate(cx):
     cols = {r["name"] for r in cx.execute("PRAGMA table_info(positions)")}
     if "arm" not in cols:
         cx.execute("ALTER TABLE positions ADD COLUMN arm TEXT NOT NULL DEFAULT 't12'")
+    ecols = {r["name"] for r in cx.execute("PRAGMA table_info(events)")}
+    if "signal_venue" not in ecols:
+        cx.execute("ALTER TABLE events ADD COLUMN signal_venue TEXT NOT NULL "
+                   "DEFAULT 'binance'")
+    kcols = {r["name"] for r in cx.execute("PRAGMA table_info(known_symbols)")}
+    if "venue" not in kcols:
+        # Rebuild rather than ALTER: the primary key has to become (venue, symbol), and
+        # SQLite cannot change a primary key in place. Existing rows are Binance by
+        # definition, since that was the only venue before this migration.
+        cx.execute("ALTER TABLE known_symbols RENAME TO known_symbols_old")
+        cx.executescript(
+            "CREATE TABLE known_symbols (venue TEXT NOT NULL DEFAULT 'binance',"
+            " symbol TEXT NOT NULL, base TEXT NOT NULL, first_seen_ms INTEGER NOT NULL,"
+            " PRIMARY KEY (venue, symbol));")
+        cx.execute("INSERT INTO known_symbols(venue,symbol,base,first_seen_ms) "
+                   "SELECT 'binance', symbol, base, first_seen_ms FROM known_symbols_old")
+        n = cx.execute("SELECT COUNT(*) c FROM known_symbols").fetchone()["c"]
+        cx.execute("DROP TABLE known_symbols_old")
+        print(f"migration: {n} known symbols carried over as venue 'binance'")
+
     for col, ddl in (("target_notional_usdt", "REAL"),
                      ("participation_pct", "REAL"),
                      ("sized_down", "INTEGER DEFAULT 0"),
@@ -215,27 +238,30 @@ def set_meta(cx, key, value):
     cx.commit()
 
 
-def bootstrap_symbols(cx, symbols):
-    """First run stores the snapshot without flagging anything as new — there is no
-    prior state to diff against, so calling 470 existing pairs 'new' would be wrong."""
+def bootstrap_symbols(cx, symbols, venue="binance"):
+    """First sight of a venue stores its snapshot without flagging anything as new — there
+    is no prior state to diff against, so calling every existing pair 'new' would be
+    wrong."""
     ts = now_ms()
     cx.executemany(
-        "INSERT OR IGNORE INTO known_symbols(symbol,base,first_seen_ms) VALUES(?,?,?)",
-        [(s, b, ts) for s, b in symbols.items()])
+        "INSERT OR IGNORE INTO known_symbols(venue,symbol,base,first_seen_ms) "
+        "VALUES(?,?,?,?)", [(venue, s, b, ts) for s, b in symbols.items()])
     cx.commit()
 
 
-def diff_symbols(cx, symbols):
-    have = {r["symbol"] for r in cx.execute("SELECT symbol FROM known_symbols")}
+def diff_symbols(cx, symbols, venue="binance"):
+    """New and delisted symbols for one signal venue. Each venue diffs independently."""
+    have = {r["symbol"] for r in cx.execute(
+        "SELECT symbol FROM known_symbols WHERE venue=?", (venue,))}
     if not have:
-        bootstrap_symbols(cx, symbols)
+        bootstrap_symbols(cx, symbols, venue)
         return [], []
     new = sorted(set(symbols) - have)
     gone = sorted(have - set(symbols))
     ts = now_ms()
     for s in new:
-        cx.execute("INSERT OR IGNORE INTO known_symbols(symbol,base,first_seen_ms) "
-                   "VALUES(?,?,?)", (s, symbols[s], ts))
+        cx.execute("INSERT OR IGNORE INTO known_symbols(venue,symbol,base,first_seen_ms) "
+                   "VALUES(?,?,?,?)", (venue, s, symbols[s], ts))
     cx.commit()
     return new, gone
 

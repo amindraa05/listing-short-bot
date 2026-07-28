@@ -38,18 +38,39 @@ turns this back into a sweep, just on newer data.
 # T+18h entry a perp existing by T+18h is genuinely shortable, and pairing a T+12h claim
 # with a T+18h event set is precisely the error that accounted for half the fall from
 # $6,180 to $2,269 in the research.
+# Each arm names its SIGNAL venue. Execution is always the Gate USDT perpetual — the venue
+# supplies the listing timestamp and nothing else, which is what removed the FX objection
+# from the Korean data. See PREREG_VENUES.md.
 ARMS = {
-    "t12": {"entry_hours": 12, "label": "T+12h",
+    "t12": {"signal_venue": "binance", "entry_hours": 12, "label": "Binance T+12h",
             "note": "the operator's hypothesis, never swept",
             "backtest": {"n": 115, "mean": 2.71, "median": 14.77, "win": 62.6,
                          "t": 1.99, "sd": 14.6}},
-    "t18": {"entry_hours": 18, "label": "T+18h",
-            "note": "middle of the T+14-24h plateau; the sweep peak was T+22h",
+    "t18": {"signal_venue": "binance", "entry_hours": 18, "label": "Binance T+18h",
+            "note": "a swept plateau that failed to replicate; kept because the freeze "
+                    "forbids dropping an arm",
             "backtest": {"n": 134, "mean": 4.86, "median": 14.77, "win": 68.7,
                          "t": 4.03, "sd": 14.6}},
+    "cb12": {"signal_venue": "coinbase", "entry_hours": 12, "label": "Coinbase T+12h",
+             "note": "clean out-of-sample: +2.76% on 48 tokens",
+             "backtest": {"n": 48, "mean": 2.76, "median": 4.38, "win": 66.7,
+                          "t": 1.64, "sd": 11.6}},
+    "up12": {"signal_venue": "upbit", "entry_hours": 12, "label": "Upbit T+12h",
+             "note": "clean out-of-sample: +3.99% on 63 tokens, placebo-controlled",
+             "backtest": {"n": 63, "mean": 3.99, "median": 11.25, "win": 65.1,
+                          "t": 2.55, "sd": 12.4}},
 }
+SIGNAL_VENUES = ["binance", "coinbase", "upbit"]
 ARM_IDS = list(ARMS)
 DEFAULT_ARM = "t12"
+
+
+def arms_for(venue):
+    return [a for a in ARM_IDS if ARMS[a]["signal_venue"] == venue]
+
+
+def arm_venue(arm):
+    return ARMS[arm]["signal_venue"]
 
 
 def arm_entry_hours(arm):
@@ -128,8 +149,19 @@ HTTP_RETRIES = 3
 USER_AGENT = ("Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 "
               "(KHTML, like Gecko) Chrome/126.0 Safari/537.36")
 
+# ---- reporting-only overlays -----------------------------------------------
+# The concurrency cap and the token cooldown are NOT applied when collecting trades.
+# Amendment 1 of PREREG_ARMS.md established that a gate may size down and must never skip,
+# because skipping removes sample points and biases the test. These are computed from the
+# recorded trades in the monitor instead. Measured on the clean large-venue history, a cap
+# of 1 gave +64.4% CAGR at an 11.2% drawdown against +59.9% at 19.0% for a cap of 2.
+REPORT_CONCURRENCY_CAP = 1
+REPORT_COOLDOWN_DAYS = 7
+
 # ---- endpoints -------------------------------------------------------------
 BINANCE_SPOT = "https://data-api.binance.vision/api/v3"
+COINBASE_EXCHANGE = "https://api.exchange.coinbase.com"
+UPBIT = "https://api.upbit.com/v1"
 GATE_FUTURES = "https://api.gateio.ws/api/v4/futures/usdt"
 OKX_PUBLIC = "https://www.okx.com/api/v5/public"
 KUCOIN_FUTURES = "https://api-futures.kucoin.com/api/v1"

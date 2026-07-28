@@ -23,12 +23,14 @@ import time
 from . import config as C
 from . import store
 
-BAR = 2.2426              # 2.0 + 0.35*ln(2), for the two pre-declared configurations
+BAR = 2.4854              # 2.0 + 0.35*ln(4), for the four pre-declared arms
+CAP = 1                   # reporting overlay only; collection is uncapped by design
+COOLDOWN_D = 7
 STOP_SIGNAL_TRADES = 15
 STOP_SIGNAL_WINRATE = 40.0
 RESEARCH_URL = "https://amindraa05.github.io/listing-short-bot/"
 PREREG_URL = ("https://github.com/amindraa05/listing-short-bot/blob/main/"
-              "PREREG_ARMS.md")
+              "PREREG_VENUES.md")
 
 
 def _fmt_ts(ms):
@@ -79,11 +81,13 @@ def gather(cx):
                    "open": [r for r in openp if r["arm"] == a],
                    "equity": store.get_equity(cx, a)}
 
-    # The paired test: same listing, both arms, both closed. This is the comparison the
-    # two-arm design exists for — it removes the between-listing variance that left the
-    # backtest's own comparison at t 1.50.
+    # The paired test compares the two BINANCE arms only. It exists to settle the entry
+    # hour on one venue's listings, so pairing it against an arm fed by a different venue
+    # would compare two different event sets and mean nothing.
     by_arm = {a: {r["base"]: r for r in arms[a]["closed"]} for a in C.ARM_IDS}
-    a1, a2 = C.ARM_IDS[0], C.ARM_IDS[1] if len(C.ARM_IDS) > 1 else C.ARM_IDS[0]
+    binance_arms = [a for a in C.ARM_IDS if C.arm_venue(a) == "binance"]
+    a1 = binance_arms[0]
+    a2 = binance_arms[1] if len(binance_arms) > 1 else binance_arms[0]
     shared = sorted(set(by_arm[a1]) & set(by_arm[a2]))
     diffs = [(b, by_arm[a2][b]["net_pct"] - by_arm[a1][b]["net_pct"]) for b in shared]
     paired = {"n": len(diffs), "pairs": diffs, "lo": a1, "hi": a2}
@@ -97,12 +101,60 @@ def gather(cx):
                        "wins": sum(1 for x in d if x > 0),
                        "losses": sum(1 for x in d if x < 0)})
 
+    # A cap-1 portfolio computed from the recorded trades. It is NOT applied to
+    # collection: Amendment 1 established that a gate may size down and must never skip,
+    # because skipping removes sample points. So the cap is an overlay on the record, and
+    # both figures are published side by side.
+    cap = _capped_portfolio(closed)
+
     last_run = cx.execute("SELECT * FROM runs ORDER BY ts_ms DESC LIMIT 1").fetchone()
-    return {"arms": arms, "paired": paired, "closed": closed, "open": openp,
+    return {"arms": arms, "paired": paired, "cap": cap, "closed": closed, "open": openp,
             "events": events, "plans": plans, "last_run": last_run,
             "started_ms": int(started["value"]) if started else store.now_ms(),
             "runs_24h": cx.execute("SELECT COUNT(*) n FROM runs WHERE ts_ms>?",
                                    (store.now_ms() - 86400_000,)).fetchone()["n"]}
+
+
+def _capped_portfolio(closed):
+    """What one account, taking at most CAP positions at a time, would have earned.
+
+    Walks the recorded trades in entry order. A trade is taken only if a slot is free and
+    the token is not on cooldown; otherwise it is counted as skipped. On the clean
+    historical samples a cap of 1 gave +64.4% CAGR at an 11.2% drawdown against +59.9% at
+    19.0% for a cap of 2 — simultaneous shorts on new listings are correlated, so a second
+    open position is leverage rather than diversification.
+    """
+    rows = sorted([r for r in closed if r["closed_ms"] and r["net_pct"] is not None],
+                  key=lambda r: r["opened_ms"])
+    eq = C.PAPER_START_EQUITY
+    peak = eq
+    open_slots = []            # (closed_ms, notional, net_pct)
+    last_seen = {}
+    taken = skipped_cap = skipped_cool = 0
+    max_dd = 0.0
+    for r in rows:
+        now = r["opened_ms"]
+        for sl in [x for x in open_slots if x[0] <= now]:
+            eq += sl[1] * sl[2] / 100.0
+            open_slots.remove(sl)
+            peak = max(peak, eq)
+            max_dd = max(max_dd, (peak - eq) / peak * 100)
+        if last_seen.get(r["base"], -1 << 62) > now - COOLDOWN_D * 86400_000:
+            skipped_cool += 1
+            continue
+        if len(open_slots) >= CAP:
+            skipped_cap += 1
+            continue
+        open_slots.append((r["closed_ms"], eq * C.POSITION_PCT, r["net_pct"]))
+        last_seen[r["base"]] = now
+        taken += 1
+    for sl in sorted(open_slots, key=lambda x: x[0]):
+        eq += sl[1] * sl[2] / 100.0
+        peak = max(peak, eq)
+        max_dd = max(max_dd, (peak - eq) / peak * 100)
+    return {"taken": taken, "skipped_cap": skipped_cap, "skipped_cool": skipped_cool,
+            "equity": eq, "max_dd": max_dd,
+            "pnl_pct": (eq / C.PAPER_START_EQUITY - 1) * 100}
 
 
 def _chip(state, text):
@@ -144,6 +196,7 @@ def render(d):
     <div class="arm">
       <div class="arm-h"><span class="tag">{a}</span>
         <strong>{cfg["label"]}</strong>
+        <span class="chip mid">{C.arm_venue(a)}</span>
         <span class="dim small">{html.escape(cfg["note"])}</span></div>
       <div class="arm-eq {"pos" if pnl >= 0 else "neg"}">{eq:,.2f}
         <span class="dim">{pnl:+.2f}% &middot; own book</span></div>
@@ -289,6 +342,26 @@ def render(d):
 
     arm_headers = "".join(f"<th>{a}</th>" for a in C.ARM_IDS)
 
+    # per-venue anchor diagnostics, so a midnight-anchor regression is visible
+    by_venue = {}
+    for r in d["events"]:
+        v = r["signal_venue"] if "signal_venue" in r.keys() else "binance"
+        b = by_venue.setdefault(v, {"n": 0, "anchored": 0, "hours": []})
+        b["n"] += 1
+        if r["listed_ms"]:
+            b["anchored"] += 1
+            b["hours"].append(time.gmtime(r["listed_ms"] / 1000).tm_hour)
+    def _anchor_row(v):
+        b = by_venue.get(v)
+        if not b:
+            return (f'<tr><td class="sym">{v}</td><td class="m dim">0</td>'
+                    f'<td class="m dim">0</td><td class="m dim">&mdash;</td></tr>')
+        hh = sorted(b["hours"])
+        med = f"{hh[len(hh)//2]:02d}:00" if hh else "&mdash;"
+        return (f'<tr><td class="sym">{v}</td><td class="m">{b["n"]}</td>'
+                f'<td class="m">{b["anchored"]}</td><td class="m">{med}</td></tr>')
+    anchor_rows = "".join(_anchor_row(v) for v in C.SIGNAL_VENUES)
+
     return f"""<!doctype html>
 <html lang="en"><head>
 <meta charset="utf-8">
@@ -385,12 +458,14 @@ a{{color:var(--accent)}}
 
 <div class="wrap">
   <div class="eyebrow">Paper trade monitor &middot; updated {_fmt_ts(store.now_ms())} UTC</div>
-  <h1>Listing-short forward test &mdash; two arms</h1>
-  <p class="lede">Live paper trading of a rule whose backtest <strong>did not</strong>
-  settle its own central question: whether the entry belongs at T+12h or T+18h. Both arms
-  were <a href="{PREREG_URL}">declared in advance</a> and neither may be dropped. Fills
-  walk the real Gate order book; fees and funding are the venue's own. No real orders are
-  placed and no API key exists.
+  <h1>Listing-short forward test &mdash; {len(C.ARM_IDS)} arms, {len(C.SIGNAL_VENUES)} venues</h1>
+  <p class="lede">Five pre-registered out-of-sample replications put this effect on
+  large-audience venues and not on small ones, at +3.46% per trade across 111 clean events
+  &mdash; <strong>sitting on its significance bar, not past it</strong>. Each arm listens to
+  one venue and trades the same Gate USDT perpetual, so the venue supplies only the listing
+  timestamp. Every arm was <a href="{PREREG_URL}">declared in advance</a> and none may be
+  dropped. Fills walk the real order book; fees and funding are the venue's own. No real
+  orders are placed and no API key exists.
   <a href="{RESEARCH_URL}">Research findings &rarr;</a></p>
 
   <section>
@@ -401,6 +476,46 @@ a{{color:var(--accent)}}
   <section>
     <h2>Paired comparison &mdash; the question this design exists to answer</h2>
     {pair_body}
+  </section>
+
+  <section>
+    <h2>One account at a cap of {CAP} &mdash; the deployment overlay</h2>
+    <div class="kpis">
+      <div class="kpi"><div class="k">Trades taken</div>
+        <div class="v">{d["cap"]["taken"]}</div>
+        <div class="s">{d["cap"]["skipped_cap"]} skipped, slot busy &middot;
+          {d["cap"]["skipped_cool"]} on cooldown</div></div>
+      <div class="kpi"><div class="k">Equity</div>
+        <div class="v {"pos" if d["cap"]["pnl_pct"] >= 0 else "neg"}">{d["cap"]["equity"]:,.2f}</div>
+        <div class="s">{d["cap"]["pnl_pct"]:+.2f}% from {C.PAPER_START_EQUITY:,.0f}</div></div>
+      <div class="kpi"><div class="k">Max drawdown</div>
+        <div class="v neg">{d["cap"]["max_dd"]:.1f}%</div>
+        <div class="s">on this trade order</div></div>
+      <div class="kpi"><div class="k">Peak exposure</div>
+        <div class="v">{CAP*C.POSITION_PCT*100:.0f}%</div>
+        <div class="s">{CAP} position &times; {C.POSITION_PCT*100:.0f}%</div></div>
+    </div>
+    <p class="dim small">The cap is applied <strong>here</strong> and not when collecting
+    trades. Amendment 1 of the pre-registration established that a gate may size down and
+    must never skip an event, because skipping removes sample points and biases the test.
+    So every arm above takes every eligible listing, and this panel shows what a single
+    account running at most {CAP} position at a time would have earned from the same
+    record. On the clean historical samples a cap of 1 returned +64.4% CAGR at an 11.2%
+    drawdown against +59.9% at 19.0% for a cap of 2 &mdash; simultaneous shorts on new
+    listings are correlated, so a second open position is leverage, not diversification.</p>
+  </section>
+
+  <section>
+    <h2>Anchor diagnostics &mdash; where this project keeps failing</h2>
+    <div class="tablewrap"><table>
+      <thead><tr><th>Signal venue</th><th>Listings seen</th><th>With an anchor</th>
+      <th>Median first traded hour, UTC</th></tr></thead>
+      <tbody>{anchor_rows}</tbody></table></div>
+    <p class="dim small">Three separate midnight-anchor bugs have been found in this
+    project, the most recent inside the Upbit study where it manufactured a +5.91% result
+    at t&nbsp;5.76 that had to be withdrawn. Coinbase lists at a median 17:00 UTC and Upbit
+    at a median 7h past midnight, so a median clustered at 00:00 here would mean the bug
+    has returned.</p>
   </section>
 
   <section>
@@ -481,7 +596,9 @@ a{{color:var(--accent)}}
   <section>
     <h2>Frozen, shared by both arms</h2>
     <div class="rule"><dl>
-      <dt>signal</dt><dd>new USDT pair starts trading on Binance spot</dd>
+      <dt>signal</dt><dd>a new pair starts trading on that arm's venue</dd>
+      <dt>anchor</dt><dd>that venue's own first traded hour, never midnight</dd>
+      <dt>execution</dt><dd>Gate USDT perpetual, every arm</dd>
       <dt>filter</dt><dd>a Gate perpetual must exist by that arm's entry hour</dd>
       <dt>direction</dt><dd>short, never long</dd>
       <dt>take profit</dt><dd>{C.TAKE_PROFIT*100:.0f}%</dd>
