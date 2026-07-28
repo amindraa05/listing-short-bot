@@ -80,7 +80,12 @@ PAPER_START_EQUITY = 1000.0
 CURRENCY = "USDT"
 
 # ---- venue costs, real ------------------------------------------------------
-GATE_TAKER_FEE = 0.0005   # 0.05% per side
+GATE_TAKER_FEE = 0.00075  # 0.075% per side — Gate's own contract spec reports exactly
+                          # this on all 850 USDT perps. The 0.05% assumed here until
+                          # 2026-07-28 was a guess, and it understated the round trip by
+                          # a third. Corrected before any trade closed. VIP tiers reduce
+                          # it; the forward test uses the undiscounted rate, because a
+                          # cost the account might not get is not a cost to assume away.
 # Funding is fetched live per contract, never assumed. A short RECEIVES funding when
 # the rate is positive, which on a hyped new listing it usually is.
 
