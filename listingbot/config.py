@@ -89,11 +89,15 @@ TAKE_PROFIT = 0.15        # fraction, favourable
 STOP_LOSS = 0.15          # fraction, adverse
 MAX_HOLD_HOURS = 72
 LEVERAGE = 1.0
-POSITION_PCT = 0.20       # of equity per position, set by the operator.
-                          # For context on what that implies: the backtest's
-                          # bootstrapped p90 drawdown was 35.8% at 30% sizing and
-                          # scales roughly linearly, so ~24% at 20%. The historical
-                          # ordering gave a kinder 16.7%; size against the p90.
+POSITION_PCT = 0.17       # SOLVED, not chosen. Size and drawdown are near-proportional
+                          # in this strategy, so a drawdown target has exactly one size
+                          # that meets it. Bisecting against a bootstrapped p90 drawdown
+                          # on the clean out-of-sample sample: a 20% target solves to 17%.
+                          #
+                          # Was 20%, picked by hand before the drawdown could be targeted.
+                          # Changed at 0 closed positions, and it cannot bias the test:
+                          # the statistic is the PERCENTAGE return per trade, which size
+                          # does not touch. See Amendment 2 in PREREG_ARMS.md.
 
 # ---- paper account ---------------------------------------------------------
 # Per arm, not shared: each book starts here and compounds independently.
@@ -172,7 +176,7 @@ REPORT_COOLDOWN_DAYS = 7
 # At the parameter-free +1.18%/trade the same 20% drawdown buys only +12.8%, and that gap is
 # the cost of the entry hour not being identifiable across venues.
 COMBINED_DD_TARGET_PCT = 20
-COMBINED_SIZE = 0.17
+COMBINED_SIZE = POSITION_PCT
 COMBINED_SIZE_TABLE = {10: 0.09, 15: 0.14, 20: 0.17, 25: 0.23, 30: 0.28}
 
 # ---- endpoints -------------------------------------------------------------

@@ -3,8 +3,8 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="description" content="Shorting the new-listing pump: five pre-registered
-out-of-sample replications. Refuted on small exchanges; on Coinbase and Upbit the pooled 111
-clean events run +3.46% at t 3.03 — sitting on its significance bar, not past it.">
+out-of-sample replications, and one combined book across Binance, Coinbase and Upbit whose
+size is solved from a drawdown target rather than guessed.">
 <title>Listing-Short Research — Honest Findings</title>
 <style>
 :root {
@@ -133,6 +133,9 @@ footer { border-top:1px solid var(--line); padding-top:16px; font-family:var(--m
 .split .s { font-family:var(--mono); font-size:0.7rem; color:var(--muted);
   margin-bottom:10px; }
 .split p { margin:0; font-size:0.86rem; color:var(--muted); }
+.ddbar { display:inline-block; height:7px; border-radius:2px; background:var(--accent);
+  min-width:2px; }
+tr.hi td { background:var(--accent-soft); font-weight:600; }
 @media (max-width:680px) { .split { grid-template-columns:1fr; } }
 .refuted { border:1px solid var(--warn); border-left-width:4px; border-radius:3px;
   background:var(--panel); padding:18px 22px; margin:0 0 24px; }
@@ -250,6 +253,53 @@ footer { border-top:1px solid var(--line); padding-top:16px; font-family:var(--m
         <li>DEV subset alone: t 1.14</li>
       </ul></div>
   </div>
+
+  <section>
+    <h2>The combined book &mdash; and the one dial it has</h2>
+    <p>Three venues feed one account. When several list the same token the earliest listing
+    wins and that token then sits out a 7-day cooldown, so a coin is
+    shorted once no matter how many exchanges add it. On history that bound 4 of 226
+    signals; the venues mostly list months apart. After deduplication:
+    <strong>222 signals</strong>, about
+    <strong>114 a year</strong>.</p>
+    <p><strong>Size is not a preference here, it is a consequence.</strong> Size and
+    drawdown are near-proportional in this strategy, so there is exactly one size that meets
+    any drawdown you are willing to sit through. Rather than pick a percentage, the size is
+    solved by bisection against a bootstrapped p90 drawdown:</p>
+    <div class="tablewrap"><table>
+      <thead><tr><th>Drawdown target</th><th>Size per trade</th>
+      <th>CAGR at +3.46%/trade</th><th>at +1.18%/trade</th><th>Peak exposure</th>
+      <th></th></tr></thead>
+      <tbody><tr><td class="m">10%</td><td class="m"><strong>9%</strong></td><td class="m pos">+26.9%</td><td class="m dim">+6.7%</td><td class="m dim">9%</td><td><span class="ddbar" style="width:24%"></span></td></tr>
+<tr><td class="m">15%</td><td class="m"><strong>14%</strong></td><td class="m pos">+45.5%</td><td class="m dim">—</td><td class="m dim">14%</td><td><span class="ddbar" style="width:41%"></span></td></tr>
+<tr class="hi"><td class="m">20%</td><td class="m"><strong>17%</strong></td><td class="m pos">+58.9%</td><td class="m dim">+12.8%</td><td class="m dim">17%</td><td><span class="ddbar" style="width:53%"></span></td></tr>
+<tr><td class="m">25%</td><td class="m"><strong>23%</strong></td><td class="m pos">+85.3%</td><td class="m dim">—</td><td class="m dim">23%</td><td><span class="ddbar" style="width:77%"></span></td></tr>
+<tr><td class="m">30%</td><td class="m"><strong>28%</strong></td><td class="m pos">+111.2%</td><td class="m dim">+19.3%</td><td class="m dim">28%</td><td><span class="ddbar" style="width:100%"></span></td></tr></tbody></table></div>
+    <p>The highlighted row is what the live paper book runs. The fourth column is the same
+    arithmetic at the <strong>parameter-free</strong> per-trade mean &mdash; the unweighted
+    average across T+6h to T+30h, used because the entry-hour surfaces on the two clean
+    large venues anti-correlate at r&nbsp;=&nbsp;&minus;0.685 and the hour therefore cannot
+    be identified. <strong>The same 20% drawdown buys +58.9% if T+12h is right and +12.8% if
+    the hour is arbitrary.</strong> That gap, not the headline, is the honest measure of what
+    is still unknown.</p>
+    <div class="split">
+      <div><div class="k">Why one position at a time</div>
+        <div class="v" style="color:var(--accent)">cap 1</div>
+        <div class="s">17% peak exposure at the 20% target</div>
+        <p>At a matched drawdown a cap of two earns about the same for roughly twice the
+        exposure &mdash; +69.8% on 32% against +58.9% on 17%. Simultaneous shorts on fresh
+        listings move together, so a second open position is leverage rather than
+        diversification, and leverage is cheaper bought by enlarging the one position.</p></div>
+      <div><div class="k">Which Binance hour feeds it</div>
+        <div class="v" style="color:var(--accent)">T+12h</div>
+        <div class="s">not the swept T+18h</div>
+        <p>With every leg rescaled to one assumed edge the two hours produce almost the same
+        calendar, +61.9% against +60.0%. The difference is in the measured per-trade edge,
+        and there T+12h wins on both clean venues: +2.76% against +2.25% on Coinbase, +3.99%
+        against +0.72% on Upbit, and paired on Coinbase T+18h minus T+12h is &minus;3.50pp at
+        t&nbsp;&minus;2.80. The T+18h arm is still not dropped; the freeze forbids it.</p></div>
+    </div>
+  </section>
 
   <section>
     <h2>What the out-of-sample sample is worth</h2>

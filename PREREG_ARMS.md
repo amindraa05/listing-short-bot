@@ -157,3 +157,34 @@ A measurement input, not a rule parameter, and again corrected before any positi
 **Still frozen and untouched:** entry hours, take profit, stop loss, max hold, leverage,
 the 20% sizing rule, the arms themselves, and the stop signal.
 
+---
+
+## Amendment 2 — position size solved from a drawdown target, 2026-07-28
+
+Made while the database held **0 closed and 0 open positions on every arm**.
+
+**What changed.** `POSITION_PCT` from 20% to **17%**.
+
+**Why it is not a free choice.** 20% was picked by hand, before there was any way to target a
+drawdown. There is now: size and drawdown are near-proportional in this strategy, so a drawdown
+target has exactly one size that meets it. Bisecting against a bootstrapped p90 drawdown on the
+clean out-of-sample sample gives:
+
+| p90 drawdown target | size | CAGR at +3.46%/trade | at +1.18%/trade |
+|---|---|---|---|
+| 10% | 9% | +26.9% | +6.7% |
+| 15% | 14% | +45.5% | — |
+| **20%** | **17%** | **+58.9%** | **+12.8%** |
+| 25% | 23% | +85.3% | — |
+| 30% | 28% | +111.2% | +19.3% |
+
+The 20% target is what ships. Changing the target changes one number and its consequence is
+published in the same table, which is the point of solving it rather than choosing it.
+
+**Why this cannot bias the test.** The statistic is the **percentage** return per trade — mean,
+win rate, t. Size changes the dollar P&L and leaves the percentage untouched. This is the same
+argument Amendment 1 used to justify sizing down at the liquidity gate, and the same reason a
+concurrency cap is forbidden in collection: a cap would remove events, and size does not.
+
+**Still frozen and untouched:** entry hours, take profit, stop loss, max hold, leverage, the
+arms themselves, the stop signal, and the rule that no arm may be dropped.

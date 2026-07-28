@@ -498,16 +498,6 @@ a{{color:var(--accent)}}
   <a href="{RESEARCH_URL}">Research findings &rarr;</a></p>
 
   <section>
-    <h2>The two arms, each on its own book</h2>
-    <div class="arms">{"".join(panels)}</div>
-  </section>
-
-  <section>
-    <h2>Paired comparison &mdash; the question this design exists to answer</h2>
-    {pair_body}
-  </section>
-
-  <section>
     <h2>The combined book &mdash; all venues, one account, one trade per token</h2>
     <div class="kpis">
       <div class="kpi"><div class="k">Equity</div>
@@ -565,6 +555,16 @@ a{{color:var(--accent)}}
   </section>
 
   <section>
+    <h2>The arms behind it, measured separately and uncapped</h2>
+    <div class="arms">{"".join(panels)}</div>
+  </section>
+
+  <section>
+    <h2>Paired comparison &mdash; the question this design exists to answer</h2>
+    {pair_body}
+  </section>
+
+  <section>
     <h2>Anchor diagnostics &mdash; where this project keeps failing</h2>
     <div class="tablewrap"><table>
       <thead><tr><th>Signal venue</th><th>Listings seen</th><th>With an anchor</th>
@@ -578,7 +578,7 @@ a{{color:var(--accent)}}
   </section>
 
   <section>
-    <h2>Combined paper account</h2>
+    <h2>All arms summed, for reference</h2>
     <div class="kpis">
       <div class="kpi"><div class="k">Total equity</div>
         <div class="v {"pos" if total_eq >= total_start else "neg"}">{total_eq:,.2f}</div>
@@ -653,7 +653,7 @@ a{{color:var(--accent)}}
   </section>
 
   <section>
-    <h2>Frozen, shared by both arms</h2>
+    <h2>Frozen, shared by every arm</h2>
     <div class="rule"><dl>
       <dt>signal</dt><dd>a new pair starts trading on that arm's venue</dd>
       <dt>anchor</dt><dd>that venue's own first traded hour, never midnight</dd>
@@ -663,7 +663,7 @@ a{{color:var(--accent)}}
       <dt>take profit</dt><dd>{C.TAKE_PROFIT*100:.0f}%</dd>
       <dt>stop loss</dt><dd>{C.STOP_LOSS*100:.0f}%</dd>
       <dt>max hold</dt><dd>{C.MAX_HOLD_HOURS}h</dd>
-      <dt>size</dt><dd>{C.POSITION_PCT*100:.0f}% of that arm's own equity, 1&times;</dd>
+      <dt>size</dt><dd>{C.POSITION_PCT*100:.0f}% &mdash; solved from a {C.COMBINED_DD_TARGET_PCT}% p90 drawdown target, not chosen</dd>
       <dt>stop signal</dt><dd>win rate &le;{STOP_SIGNAL_WINRATE:.0f}% after
         {STOP_SIGNAL_TRADES} closed trades, per arm</dd>
       <dt>bar</dt><dd>t {BAR:.2f} = 2.0 + 0.35&thinsp;&times;&thinsp;ln(2), for two
