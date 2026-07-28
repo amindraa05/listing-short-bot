@@ -115,15 +115,24 @@ def gather(cx):
                                    (store.now_ms() - 86400_000,)).fetchone()["n"]}
 
 
-def _capped_portfolio(closed):
-    """What one account, taking at most CAP positions at a time, would have earned.
+def _capped_portfolio(closed, size=None, cap=CAP, cooldown_d=COOLDOWN_D):
+    """ONE account fed by every venue, each token traded once, at most `cap` open at a time.
 
-    Walks the recorded trades in entry order. A trade is taken only if a slot is free and
-    the token is not on cooldown; otherwise it is counted as skipped. On the clean
-    historical samples a cap of 1 gave +64.4% CAGR at an 11.2% drawdown against +59.9% at
-    19.0% for a cap of 2 — simultaneous shorts on new listings are correlated, so a second
-    open position is leverage rather than diversification.
+    This is the combined book. It is computed from the record rather than collected
+    separately, and that is not a shortcut — it is arithmetically the same thing, because
+    every arm already takes every eligible listing. Computing it here keeps the per-arm
+    measurement intact as well, which a fifth self-collecting arm would have destroyed.
+
+    A trade is taken only if a slot is free and the token has not been traded within
+    `cooldown_d` days. Cross-venue duplicates therefore resolve to ONE trade, and the
+    FIRST venue to list wins — the thesis is that the pump follows the listing, so the
+    earliest listing is the event.
+
+    Size defaults to the drawdown-targeted figure rather than the per-arm size: on the
+    clean historical sample, size and drawdown are near-proportional, so a 20% drawdown
+    target solves to 17% per position and returned +58.9% CAGR at +3.46% per trade.
     """
+    size = C.COMBINED_SIZE if size is None else size
     rows = sorted([r for r in closed if r["closed_ms"] and r["net_pct"] is not None],
                   key=lambda r: r["opened_ms"])
     eq = C.PAPER_START_EQUITY
@@ -139,21 +148,23 @@ def _capped_portfolio(closed):
             open_slots.remove(sl)
             peak = max(peak, eq)
             max_dd = max(max_dd, (peak - eq) / peak * 100)
-        if last_seen.get(r["base"], -1 << 62) > now - COOLDOWN_D * 86400_000:
+        if last_seen.get(r["base"], -1 << 62) > now - cooldown_d * 86400_000:
             skipped_cool += 1
             continue
-        if len(open_slots) >= CAP:
+        if len(open_slots) >= cap:
             skipped_cap += 1
             continue
-        open_slots.append((r["closed_ms"], eq * C.POSITION_PCT, r["net_pct"]))
+        open_slots.append((r["closed_ms"], eq * size, r["net_pct"]))
         last_seen[r["base"]] = now
         taken += 1
     for sl in sorted(open_slots, key=lambda x: x[0]):
         eq += sl[1] * sl[2] / 100.0
         peak = max(peak, eq)
         max_dd = max(max_dd, (peak - eq) / peak * 100)
+    venues_used = sorted({C.arm_venue(r["arm"]) for r in rows})
     return {"taken": taken, "skipped_cap": skipped_cap, "skipped_cool": skipped_cool,
-            "equity": eq, "max_dd": max_dd,
+            "equity": eq, "max_dd": max_dd, "size": size, "cap": cap,
+            "venues": venues_used,
             "pnl_pct": (eq / C.PAPER_START_EQUITY - 1) * 100}
 
 
@@ -342,6 +353,15 @@ def render(d):
 
     arm_headers = "".join(f"<th>{a}</th>" for a in C.ARM_IDS)
 
+    # the solved size table, measured on the clean historical sample
+    SIZE_CAGR = {10: 26.9, 15: 45.5, 20: 58.9, 25: 85.3, 30: 111.2}
+    size_rows = "".join(
+        f'<tr{" class=\"hi\"" if dd == C.COMBINED_DD_TARGET_PCT else ""}>'
+        f'<td class="m">{dd}%</td><td class="m">{sz*100:.0f}%</td>'
+        f'<td class="m pos">+{SIZE_CAGR[dd]:.1f}%</td>'
+        f'<td class="m dim">{sz*100:.0f}%</td></tr>'
+        for dd, sz in sorted(C.COMBINED_SIZE_TABLE.items()))
+
     # per-venue anchor diagnostics, so a midnight-anchor regression is visible
     by_venue = {}
     for r in d["events"]:
@@ -445,6 +465,15 @@ td.sym{{font-family:var(--mono);font-weight:600}}
 .chip{{font-family:var(--mono);font-size:0.64rem;letter-spacing:0.06em;
   text-transform:uppercase;padding:2px 6px;border-radius:2px;border:1px solid currentColor}}
 .chip.ok{{color:var(--good)}} .chip.no{{color:var(--bad)}} .chip.mid{{color:var(--warn)}}
+.refutab {{ width:100%; border-collapse:collapse; font-family:var(--mono);
+  font-size:0.76rem; margin:8px 0 12px; font-variant-numeric:tabular-nums; }}
+.refutab th {{ text-align:left; font-size:0.62rem; letter-spacing:0.08em;
+  text-transform:uppercase; color:var(--muted); padding:5px 9px 5px 0;
+  border-bottom:1px solid var(--line); font-weight:600; }}
+.refutab td {{ padding:4px 9px 4px 0; border-bottom:1px solid var(--line);
+  white-space:nowrap; }}
+.refutab tr:last-child td {{ border-bottom:0; }}
+.refutab tr.hi td {{ background:var(--accent-soft); font-weight:600; }}
 .rule{{background:var(--panel);border:1px solid var(--line);border-radius:3px;
   padding:15px 18px;font-family:var(--mono);font-size:0.82rem}}
 .rule dl{{display:grid;grid-template-columns:auto 1fr;gap:4px 18px;margin:0}}
@@ -479,30 +508,60 @@ a{{color:var(--accent)}}
   </section>
 
   <section>
-    <h2>One account at a cap of {CAP} &mdash; the deployment overlay</h2>
+    <h2>The combined book &mdash; all venues, one account, one trade per token</h2>
     <div class="kpis">
-      <div class="kpi"><div class="k">Trades taken</div>
-        <div class="v">{d["cap"]["taken"]}</div>
-        <div class="s">{d["cap"]["skipped_cap"]} skipped, slot busy &middot;
-          {d["cap"]["skipped_cool"]} on cooldown</div></div>
       <div class="kpi"><div class="k">Equity</div>
         <div class="v {"pos" if d["cap"]["pnl_pct"] >= 0 else "neg"}">{d["cap"]["equity"]:,.2f}</div>
         <div class="s">{d["cap"]["pnl_pct"]:+.2f}% from {C.PAPER_START_EQUITY:,.0f}</div></div>
+      <div class="kpi"><div class="k">Trades taken</div>
+        <div class="v">{d["cap"]["taken"]}</div>
+        <div class="s">{d["cap"]["skipped_cap"]} slot busy &middot;
+          {d["cap"]["skipped_cool"]} duplicate token</div></div>
       <div class="kpi"><div class="k">Max drawdown</div>
         <div class="v neg">{d["cap"]["max_dd"]:.1f}%</div>
-        <div class="s">on this trade order</div></div>
+        <div class="s">target {C.COMBINED_DD_TARGET_PCT}% at p90</div></div>
+      <div class="kpi"><div class="k">Size per trade</div>
+        <div class="v">{d["cap"]["size"]*100:.0f}%</div>
+        <div class="s">solved from the drawdown target</div></div>
       <div class="kpi"><div class="k">Peak exposure</div>
-        <div class="v">{CAP*C.POSITION_PCT*100:.0f}%</div>
-        <div class="s">{CAP} position &times; {C.POSITION_PCT*100:.0f}%</div></div>
+        <div class="v">{d["cap"]["cap"]*d["cap"]["size"]*100:.0f}%</div>
+        <div class="s">{d["cap"]["cap"]} position &times; {d["cap"]["size"]*100:.0f}%</div></div>
+      <div class="kpi"><div class="k">Venues feeding it</div>
+        <div class="v">{len(C.SIGNAL_VENUES)}</div>
+        <div class="s">{", ".join(C.SIGNAL_VENUES)}</div></div>
     </div>
-    <p class="dim small">The cap is applied <strong>here</strong> and not when collecting
-    trades. Amendment 1 of the pre-registration established that a gate may size down and
-    must never skip an event, because skipping removes sample points and biases the test.
-    So every arm above takes every eligible listing, and this panel shows what a single
-    account running at most {CAP} position at a time would have earned from the same
-    record. On the clean historical samples a cap of 1 returned +64.4% CAGR at an 11.2%
-    drawdown against +59.9% at 19.0% for a cap of 2 &mdash; simultaneous shorts on new
-    listings are correlated, so a second open position is leverage, not diversification.</p>
+    <div class="split">
+      <div><div class="k">Size is solved, not guessed</div>
+        <div class="v" style="color:var(--accent)">{C.COMBINED_SIZE*100:.0f}%</div>
+        <div class="s">for a {C.COMBINED_DD_TARGET_PCT}% p90 drawdown</div>
+        <p>Size and drawdown are near-proportional here, so the dial has one setting and one
+        consequence. Measured on the clean historical sample at +3.46% per trade:</p>
+        <table class="refutab"><thead><tr><th>DD target</th><th>size</th><th>CAGR</th>
+        <th>peak exposure</th></tr></thead><tbody>{size_rows}</tbody></table>
+        <p class="dim small">At the parameter-free +1.18% per trade the same 20% drawdown
+        buys only <strong>+12.8%</strong>. That gap is the cost of the entry hour not being
+        identifiable across venues.</p></div>
+      <div><div class="k">Why a cap of one</div>
+        <div class="v" style="color:var(--accent)">{d["cap"]["cap"]}</div>
+        <div class="s">position at a time</div>
+        <p>At a matched drawdown a cap of 2 earns about the same and needs roughly twice the
+        peak exposure &mdash; at a 20% target, +69.8% on 32% exposure against +58.9% on 17%.
+        Simultaneous shorts on new listings move together, so a second open position is
+        leverage rather than diversification, and leverage is cheaper to buy by making the
+        one position larger.</p>
+        <p><strong>Duplicates resolve to one trade.</strong> When several venues list the
+        same token the first to list wins and the token is then on a
+        {C.REPORT_COOLDOWN_DAYS}-day cooldown &mdash; the thesis is that the pump follows
+        the listing, so the earliest listing is the event. On history that bound 4 of 226
+        signals; the venues mostly list months apart.</p></div>
+    </div>
+    <p class="dim small">This book is computed from the arms' own record rather than
+    collected separately, which is arithmetically the same thing because every arm already
+    takes every eligible listing &mdash; and it leaves the per-arm measurement intact, which
+    a fifth self-collecting arm would have destroyed. The cap and the cooldown live here and
+    not in collection because Amendment 1 of the pre-registration established that a gate may
+    size down and must never skip an event: skipping removes sample points and biases the
+    test.</p>
   </section>
 
   <section>

@@ -158,6 +158,23 @@ USER_AGENT = ("Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 "
 REPORT_CONCURRENCY_CAP = 1
 REPORT_COOLDOWN_DAYS = 7
 
+# The combined book: every venue's signals merged into ONE account, each token traded once.
+# Size is not guessed. Size and drawdown are near-proportional here, so the size is SOLVED
+# from a drawdown target on the clean historical sample and the answer recorded below:
+#
+#   DD target   size   CAGR at the clean +3.46%/trade   peak exposure
+#      10%        9%            +26.9%                       9%
+#      15%       14%            +45.5%                      14%
+#      20%       17%            +58.9%                      17%
+#      25%       23%            +85.3%                      23%
+#      30%       28%           +111.2%                      28%
+#
+# At the parameter-free +1.18%/trade the same 20% drawdown buys only +12.8%, and that gap is
+# the cost of the entry hour not being identifiable across venues.
+COMBINED_DD_TARGET_PCT = 20
+COMBINED_SIZE = 0.17
+COMBINED_SIZE_TABLE = {10: 0.09, 15: 0.14, 20: 0.17, 25: 0.23, 30: 0.28}
+
 # ---- endpoints -------------------------------------------------------------
 BINANCE_SPOT = "https://data-api.binance.vision/api/v3"
 COINBASE_EXCHANGE = "https://api.exchange.coinbase.com"
