@@ -119,3 +119,86 @@ refute, and it is the recommended next step regardless of what the 39 events sho
 - **Spot, not perp.** The trade is a perpetual short; the series is spot. The Binance study
   found spot-priced events ran 1.2pp weaker than perp-priced ones and never established why.
 - **One market regime.** The same objection as the original: 730 days, one cycle.
+
+---
+
+# RESULT — run 2026-07-28, after the above was committed
+
+## Primary sample: the edge is not there
+
+| arm | n | mean | median | win | t | 95% CI |
+|---|---|---|---|---|---|---|
+| **t12** (T+12h) | 39 | **−3.72%** | **−15.32%** | **38.5%** | −1.66 | −8.13 … +0.68 |
+| **t18** (T+18h) | 39 | −1.55% | −2.46% | 48.7% | −0.68 | −5.98 … +2.89 |
+
+Two pre-registered thresholds were both crossed: **the mean is clearly negative**, and the
+**win rate of 38.5% is below the 40% stop signal** that this project agreed in advance is
+the point to abandon an arm.
+
+**The modal outcome inverted.** The median trade in the Binance sample was **+14.77%** — the
+take profit. The median fresh Bybit trade is **−15.32%** — the stop. It is not that the edge
+shrank; the typical trade changed sides.
+
+How unlikely is this if the edge were real:
+
+| under the hypothesis that the true mean is | P(observing a mean ≤ −3.72%) |
+|---|---|
+| +1.99%, the spot-priced Binance benchmark | **0.55%** |
+| +2.71%, the headline | **0.21%** |
+| 0.00%, no edge at all | 4.88% |
+
+And on win rate alone: P(≤15 wins in 39 | p = 0.626) = **0.19%**.
+
+The dispersion matches — sd 14.03 against the Binance sample's 14.61 — so this is not a
+strange sample producing noise. It is the same kind of distribution with the sign flipped.
+
+## The secondary sample reproduces the Binance result exactly, which is the tell
+
+| sample | n | mean | median | win | t |
+|---|---|---|---|---|---|
+| shared tokens (already in the Binance study) | 69 | **+2.06%** | +14.72% | 59.4% | +1.17 |
+| fresh tokens | 39 | **−3.72%** | −15.32% | 38.5% | −1.66 |
+
+Difference **+5.78pp at t 2.02**. The edge is present on the tokens the original study used
+and absent on tokens it never saw. That is the signature of a sample-specific result rather
+than a mechanism.
+
+## Checks run before believing it
+
+- **Established tokens contaminating the fresh sample.** 7 of 39 were tokens whose perpetual
+  already existed by more than 30 days at the Bybit listing — VET (1,568 days), VTHO (427),
+  RENDER, HYPE — so Bybit merely added a venue. Removing them changes almost nothing:
+  **−3.50%, win 40.6%** on the 32 genuinely new tokens.
+- **Spot versus perp pricing.** Adding back the full 1.21pp that spot pricing cost in the
+  Binance study still leaves **−2.51%**.
+- **Time split.** First half −5.66% (win 31.6%), second half −1.89% (win 45.0%). Negative in
+  both, so it is not one bad window.
+- **Both arms.** t18 is also negative, so it is not an entry-hour artefact.
+- **Adverse excursion.** Median MAE 22.4% on fresh tokens against 13.7% on shared, and 19 of
+  32 fresh events stopped out. These tokens keep running up after the entry.
+
+## What this does and does not refute
+
+**Refuted:** the general claim that *a new spot listing on a major exchange pumps and then
+falls hard enough to short*. On clean data it does the opposite.
+
+**Not refuted, but now unsupported:** the narrower claim that **Binance listings specifically**
+behave that way. A Binance listing is a far larger liquidity event than a Bybit one, and the
+adverse-excursion gap above is consistent with fresh Bybit tokens simply continuing to pump.
+That escape route is real — but it is now a hypothesis with **no clean evidence behind it at
+all**, because the Binance sample is spent and this was the replication.
+
+**The honest reading against the edge is weaker than the numbers suggest, in one specific
+way.** Survivorship works in the edge's favour here: only pairs still listed on Bybit were
+enumerated, and delisted tokens are disproportionately the ones that collapsed — exactly the
+trades a short would have won. The pre-registration named this before the run. So the true
+fresh-sample mean is probably somewhat better than −3.72%. It would have to be better by
+almost 6pp to reach the Binance figure.
+
+## Consequence
+
+The paper forward test keeps running, because it costs nothing and it is the only remaining
+clean test of the narrow Binance-specific claim. But the prior behind it should now be
+treated as much weaker than the dashboard's framing implies, and **no real capital should go
+near this** until the forward test has produced its own evidence.
+
