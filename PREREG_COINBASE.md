@@ -117,3 +117,117 @@ Coinbase caps candles at 300 per request, and the 110-hour window fits in one ca
   this venue may understate it. Unresolvable here, and named now rather than later.
 - **n=15.** Small enough that a single event moves the mean by roughly 1pp.
 - **One market regime.** 730 days.
+
+---
+
+# RESULT — run 2026-07-28, after the above was committed
+
+## A bug found and fixed mid-run, reported because the loss counter caught it
+
+The first pass anchored on the **daily** candle's timestamp — midnight UTC — instead of the
+first traded hour. Coinbase lists in the afternoon: the median first traded hour is **17:00
+UTC**, and only 1 of 94 events opened at midnight. The t12 arm lost **91 of 102 events** to
+"no bar at the entry hour" before the loss report made it obvious. This is the same bug the
+Binance pipeline had to be corrected for, reintroduced. Fixed, and every number below uses the
+first traded hour.
+
+## The pre-registered primary: positive, not significant
+
+| sample | arm | n | mean | median | win | t |
+|---|---|---|---|---|---|---|
+| PRIMARY perp_after, clean | t12 | 10 | +4.66% | +14.72% | 70.0% | +1.04 |
+| PRIMARY perp_after, clean | t18 | 15 | +2.25% | +14.72% | 60.0% | +0.58 |
+
+Per the interpretation declared in advance: **positive, below the bar, confirms nothing.**
+
+## But the pre-registered warning fired, and it points the other way
+
+The document said that an all-cohort sample coming out positive while the perp_after primary
+did not would be "a warning that the cohort story is itself an artefact". That is what
+happened:
+
+| t12 sample | n | mean | win | t |
+|---|---|---|---|---|
+| every eligible Coinbase listing | 94 | +4.41% | 73.4% | **+3.74** |
+| perp_before / near only — the "approximately zero" cohort | 72 | +3.91% | 73.6% | +3.08 |
+| perp_after — the "special" cohort | 22 | +6.05% | 72.7% | +2.09 |
+
+On Coinbase the effect appears **across all cohorts**. So the perp_after split that carried
+the entire Binance edge, and the mechanism proposed for it — no perpetual means nobody can
+short the pump so it overshoots — is **not supported**. That mechanism is withdrawn.
+
+## Contamination is doing most of the work in that headline
+
+| t12 | n | mean | win | t |
+|---|---|---|---|---|
+| all | 94 | +4.41% | 73.4% | +3.74 |
+| **clean — token never in the Binance study** | **48** | **+2.76%** | **66.7%** | **+1.64** |
+| clean plus shared-but-months-apart | 76 | +2.76% | 69.7% | +2.14 |
+| overlapping the Binance study's own windows | 18 | **+11.38%** | 88.9% | +4.97 |
+
+The 18 contaminated events run at +11.38% and drag the headline up. **The clean figure is
++2.76% at t 1.64**, which does not clear the bar of 2.63 and does not clear 2.0 either.
+
+## The placebo control passes, and rules out the obvious killer
+
+Suspicion on seeing a positive result: shorting anything into a falling market. Tested by
+re-running the identical rule on the identical tokens at +30, +60, +120 and +240 days after
+their own listings — dates with no relationship to any listing event.
+
+| | n | mean | win | t |
+|---|---|---|---|---|
+| entered at the Coinbase listing (all) | 94 | +4.41% | 73.4% | +3.74 |
+| **placebo, arbitrary dates** | **335** | **-0.47%** | **50.4%** | -0.87 |
+| shorting BTC over the same windows | 94 | -0.45% | 43.6% | -1.00 |
+
+Shorting these tokens on a random day paid nothing, and shorting BTC over the same calendar
+windows **lost** money. So this is not market beta. The listing hour is doing the work.
+
+On the clean subset the delta is **+3.23pp at t 1.83** — suggestive, not significant.
+
+## The arms contradict the reason the t18 arm exists
+
+Paired on 94 events: **t18 minus t12 = -3.50pp at t -2.80.** On Binance, T+18h measured
+**better** than T+12h by +1.82pp, and that plateau is the entire justification recorded in
+`PREREG_ARMS.md` for running a second arm. On Coinbase it is significantly **worse**. The
+plateau story does not replicate.
+
+## Where all the clean evidence now sits
+
+| sample | venue tier | n | mean | win | t |
+|---|---|---|---|---|---|
+| Binance (in-sample, contaminated) | large | 115 | +2.71% | 62.6% | +1.99 |
+| **Coinbase, clean tokens** | **large** | **48** | **+2.76%** | 66.7% | +1.64 |
+| Bybit fresh | small | 39 | -3.72% | 38.5% | -1.66 |
+| four-venue pool fresh | small | 92 | -2.65% | 43.5% | -1.80 |
+
+Large-venue clean minus small-venue pool: **+5.41pp at t 2.42.**
+
+The two large-venue samples land at **+2.71%** and **+2.76%** on independent data. That
+agreement is the most striking number in this whole exercise, and it is exactly the escape
+route `PREREG_POOL.md` named in advance: a Gate or KuCoin listing is a far smaller liquidity
+event than a Binance one, and the mechanism may need a large audience arriving at once.
+
+**It still does not clear a bar.** t 1.64 on the clean Coinbase sample, t 2.42 on the
+venue-tier split, against 2.63 — and the venue-tier partition was chosen after seeing three
+results, which is its own form of searching.
+
+## Verdict
+
+**The general thesis stays refuted**, and the cohort story that was supposed to rescue it is
+now refuted too.
+
+What replaces both is narrower and better specified than anything this project had before:
+**the effect appears on large-audience venues and not on small ones.** Two independent
+large-venue samples agree to within 0.05pp; two small-venue samples agree on the opposite
+sign. That is a real pattern with a nameable mechanism, it survives a placebo control, and it
+is **not yet significant.**
+
+The paper forward test runs on Binance listings — a large-audience venue. Its prior is
+materially better than it was this morning, and it is still the only clean test left. It keeps
+running. **No real capital.**
+
+One thing not to fix in it: the t18 arm was justified by a plateau that has now failed to
+replicate. `PREREG_ARMS.md` forbids dropping an arm once trades exist, and there are none yet,
+but changing it now would still be reacting to a result. **Both arms stay.** The contradiction
+is recorded here instead, and the forward test will settle it on its own data.
